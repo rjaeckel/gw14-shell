@@ -13,7 +13,7 @@ Rest-Api Curl Wrapper for PHP to administer [Novell GroupWise 2014](https://www.
 
 ## <a name="req"></a>Requirements
 
-We've tried to make the api-wrapper runnable on a recent SLES-System, `SLES11SP3`, which is the latest Linux host supported ny Novell. 
+We've tried to make the api-wrapper runnable on a recent SLES-System, `SLES11SP3`, which is the latest Linux host supported by Novell. 
 
 ### Runtime
  * PHP >= 5.3 - latest version on SLES11-SP3: `php53`
@@ -22,8 +22,9 @@ We've tried to make the api-wrapper runnable on a recent SLES-System, `SLES11SP3
  * ini-flag `short_open_tags` enabled or PHP>=5.4
  * curl binary accessible from php
  
-### Migration-Module
- * `php53-pcntl` for multi-threads; esp. for performance reasons in migration
+### Helpers-Module
+ used in `crons` and `werkzeuge`
+ * `php53-pcntl` for multi-threading; Esp. for performance reasons in bulk operations
  * `php53-sysvsem` semaphore-support for multi-threading
  * `php53-sysvshm` shared-memory-support for multi-threading
 
