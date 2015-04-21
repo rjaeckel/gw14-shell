@@ -29,7 +29,7 @@ We've tried to make the api-wrapper runnable on a recent SLES-System, `SLES11SP3
 
 ### SLES11 requirements installation:
 ```shell
-zypper in php53 php53-pcntl php53-sysvsem php53-sysvshm php53-openssl
+zypper in php53 php53-pcntl php53-sysvsem php53-sysvshm php53-openssl git-core
 ```
 
 ### General
@@ -37,10 +37,16 @@ zypper in php53 php53-pcntl php53-sysvsem php53-sysvshm php53-openssl
  * Depending on the OS some features might be packaged directly into PHP
 
 ## <a name="cfg"></a>Configuration
-
- 1. configure `common/config.local.php` fitting your requirements; see `common/config.default.php` for options
- 2. run `api-gen/abstract.php` to abstract your state of admin-api
- 2. update `setpath.sh` if required
+ 1. checkout branch and init submodules
+      ```shell
+      git clone git@github.com:uni-halle/gw14-shell
+      git submodule init
+      git submodule update
+      ```
+        
+ 2. configure `common/config.local.php` fitting your requirements; see `common/config.default.php` for options
+ 3. run `api-gen/abstract.php` to abstract your state of admin-api
+ 4. update `setpath.sh` if required
 
 ## Administering GroupWise 2014
 
