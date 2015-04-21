@@ -1,0 +1,114 @@
+#!/usr/bin/env php
+<?php
+/**
+ * Autocompletition for bash
+ */
+
+namespace mlu\rest;
+use mlu\common;
+
+define('__devmode',false);
+require 'application.php';
+
+//echo \json_encode($_SERVER).PHP_EOL;
+
+array_shift($argv);
+
+$bin=array_shift($argv);
+
+$cur=$_SERVER['cur'];
+$prev=$_SERVER['prev'];
+$pprev=$_SERVER['pprev'];
+
+
+if ($prev=='=') {
+    $current=$pprev.$prev.$cur;
+} elseif($cur=='=') {
+    $current=$prev.$cur;
+} else {
+    $current=$cur;
+}
+
+
+if($completeParam=stripos($current, '=')) {
+    $h=explode('=',$current);
+    $completeParam=$h[0];
+    $completeValue=$h[1];
+}
+
+$setParams=array();
+foreach($argv as $shellParam) {
+    $shellParam=explode('=', $shellParam);
+    if(count($shellParam)==2) $setParams[]=$shellParam[0];
+}
+
+$classAction=explode('.',$bin);
+$cName=__gwWadlNamespace.'\\'.$classAction[0];
+$methodInfo=$cName::getMethodInfo($classAction[1]);
+
+$params=array();
+
+$missingTemplates=false;
+foreach($methodInfo->paramStatic as $k=>$v) {
+    if(!in_array("-$k", $setParams) && !isset($_SERVER[$k])) {
+        $params[]="-$k";
+        $missingTemplates=true;
+    }
+}
+$dataParamsRaw=isset($methodInfo->requestType)?common::xsdTypeInfo($methodInfo->requestType,1):array();
+
+if(!($missingTemplates||$completeParam)) {
+    $qParams=array_merge((array)$methodInfo->paramQuery,array('filter'=>'','count'=>'','attrs'=>''));
+    foreach($qParams as $k=>$v) {
+        if(!in_array("?$k", $setParams)) { $params[]="?$k"; }
+    }
+    foreach($dataParamsRaw as $param) {
+        $effective = false;
+        $pName=$param->name;
+        if(is_subclass_of(__gwXsdNamespace.'\\'.$param->type, __gwXsdNamespace.'\\restEffectiveValue')) {
+            $effective=true;
+        }
+        if ($effective) {
+            if(!(in_array($pName, $setParams)||in_array("@$pName", $setParams))) {$params[]=$pName; $params[]="@$pName"; }
+        } else {
+            if(!(in_array($pName, $setParams))) {$params[]=$pName; }
+        }
+    }
+}
+foreach($params as &$param) { $param.='='; }
+if($completeParam) {
+    $seek=false;
+    switch ($completeParam[0]) {
+        case '?': break;
+        case '-': break;
+        case '@': 
+            $seek = array(substr($completeParam, 1),'@',$completeValue);
+            break;
+        default :
+            $seek = array($completeParam,'',$completeValue);
+    }
+    if ($seek) {
+        //fwrite(STDERR, \json_encode($dataParamsRaw->{$seek[0]},JSON_PRETTY_PRINT));
+        switch ($seek[1]) {
+            case '@':
+                if(is_string(@$dataParamsRaw->{$seek[0]}->options->value->options)) {
+                    //fwrite(STDERR,$dataParamsRaw->{$seek[0]}->options->value->options);
+                    $params= explode('|', $dataParamsRaw->{$seek[0]}->options->value->options);
+                }
+                break;
+            case '':
+                if(is_string(@$dataParamsRaw->{$seek[0]}->options)) {
+                    //fwrite(STDERR,$dataParamsRaw->{$seek[0]}->options);
+                    $params= explode('|', $dataParamsRaw->{$seek[0]}->options);
+                }
+                break;
+        }
+        if($cur=='=') { foreach($params as &$p) { $p="=$p"; } }
+    }
+}
+
+
+
+#sort($params,SORT_NATURAL);
+natsort($params);
+echo implode(' ',$params);

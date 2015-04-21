@@ -1,0 +1,23 @@
+#!/usr/bin/env php
+<?php
+/**
+ * shell execution
+ */
+
+namespace mlu\groupwise;
+
+require 'application.php';
+// get execution information
+$binary= basename(__FILE__);
+$action=$executable = basename (array_shift($argv));
+
+// the binary was called directly. the action is the next argument
+if($binary==$executable) {
+    if ($argc==1) { die("Not enough arguments.".PHP_EOL); }
+    $action=$argv[0];
+    $argc--;
+} else {
+    array_unshift($argv, $executable);
+}
+
+call_user_func_array('\mlu\common::shellWrapProxyAction',explode('.', $action));
