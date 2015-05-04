@@ -218,12 +218,26 @@ function userUpdateAction($user,$internetDomain,$prefMailId,$more=array()) {
 		        if($err==$userID) throw new Exception('UPDATE OK!');
                 logWrite("Could not update User <$userID>: Address <$prefMailId@$internetDomain> conflicts with <$err>", STDERR, PHP_EOL);
             } catch (\Exception $e) {
-                // update user's mail address
-                $more=array_merge($more,array(
+                // check if user should be disabled or "deleted" by email-id
+                $mailPrefix=strtolower(array_shift(explode('_',$prefMailId)));
+                $userState=$userState=array(
+                    @loginDisabled=>false,
+                    @forceInactive=>false
+                );
+                switch($mailPrefix) {
+                    case @geloescht:
+                        $userState[@forceInactive]=true;
+                    //no break to disable login as well!
+                    case @gesperrt:
+                        $userState[@loginDisabled]=true;
+                }
+                // update address and visibilty according to internet domain
+                $more=array_merge($more,$userState,array(
                     @preferredEmailId => $prefMailId,
                     @visibility => $internetDomain=='student.uni-halle.de'?@NONE:@DOMAIN
                     //@visibility => @NONE
                 ));
+                // perform update
                 $user->update(
                     common::putEffectiveValues((object)$more,
                         array(@internetDomainName => $internetDomain)
