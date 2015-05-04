@@ -220,6 +220,7 @@ function userUpdateAction($user,$internetDomain,$prefMailId,$more=array()) {
             } catch (\Exception $e) {
                 // check if user should be disabled or "deleted" by email-id
                 $mailPrefix=strtolower(array_shift(explode('_',$prefMailId)));
+                $forceInvis=false;
                 $userState=$userState=array(
                     @loginDisabled=>false,
                     @forceInactive=>false
@@ -230,11 +231,13 @@ function userUpdateAction($user,$internetDomain,$prefMailId,$more=array()) {
                     //no break to disable login as well!
                     case @gesperrt:
                         $userState[@loginDisabled]=true;
+                        $forceInvis=true;
+
                 }
                 // update address and visibilty according to internet domain
                 $more=array_merge($more,$userState,array(
                     @preferredEmailId => $prefMailId,
-                    @visibility => $internetDomain=='student.uni-halle.de'?@NONE:@DOMAIN
+                    @visibility => ($internetDomain=='student.uni-halle.de'||$forceInvis)?@NONE:@DOMAIN
                     //@visibility => @NONE
                 ));
                 // perform update
