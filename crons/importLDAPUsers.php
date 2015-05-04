@@ -221,8 +221,8 @@ function userUpdateAction($user,$internetDomain,$prefMailId,$more=array()) {
                 // update user's mail address
                 $more=array_merge($more,array(
                     @preferredEmailId => $prefMailId,
-                    //@visibility => $internetDomain=='student.uni-halle.de'?@NONE:@DOMAIN
-                    @visibility => @NONE
+                    @visibility => $internetDomain=='student.uni-halle.de'?@NONE:@DOMAIN
+                    //@visibility => @NONE
                 ));
                 $user->update(
                     common::putEffectiveValues((object)$more,
