@@ -21,7 +21,7 @@ foreach($arglist as $n) $$n=@array_shift($argv)?:'?';
 if($argc<3) {
     echo <<<eoi
 Ändert die Internet Domain für einen Account und erstellt einen Nickname für die alte Adresse.
-    $bin {username} {NewSurname} {NewPrefEmailId}
+    $bin {username} {iDomain}
 
     your input $bin $uid $iDomain
 
