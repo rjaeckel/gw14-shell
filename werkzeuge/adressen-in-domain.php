@@ -19,7 +19,7 @@ foreach($argList as $n) $$n=@array_shift($argv)?:'?';
 if($argc<2) {
    echo <<<eoi
 Listet alle Email-Adressen und Objekt-IDs einer InternetDomain auf.
-    $bin {username} {iDomain}
+    $bin {iDomain}
 
     your input $bin $domain
 
