@@ -379,7 +379,13 @@ if(cfg::$move||cfg::$update) {
                     }
                     // if user was updated, not initialized as a new user has no iDomain set
                     if (2==($comp()&2)) {
-                        if(0==($comp()&4)||0==($comp()&8)) {//email-address changed, create nickname
+                        // check the user was or will not be disabled
+                        $deletedState = (0===stripos($prefMailId,'geloescht_'))||
+                                        (0===stripos($prefMailId,'gesperrt_'))||
+                                        (0===stripos($user->preferredEmailId,'geloescht_'))||
+                                        (0===stripos($user->preferredEmailId,'gesperrt_'));
+
+                        if(!$deletedState && (0==($comp()&4)||0==($comp()&8))) {//email-address changed, create nickname
                             worker()->enqueue(function()use($user){
                                 // generate java-timestamp -> time()*1000 for expiration date
                                 $exp=1000*(
@@ -397,7 +403,6 @@ if(cfg::$move||cfg::$update) {
                                     )
                                 );
                             })->work(false);
-
                         }
                     }
                 } catch (E $e) {
