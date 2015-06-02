@@ -24,6 +24,7 @@ use mlu\common\functions;
  * @method static null write2file (string $fileName,string $data,string $data) write a bunch of strings into a file
  * @method static mixed[] xml2assoc(\XMLReader $xml,int $d=0) @see function xml2assoc
  * @method static object xsdTypeInfo (string $class, bool $recurse=false) get information about an xsd abstraction
+ * @method static groupwise\apiResult|groupwise\xsd\Nickname createNickname ($uid,$emailID,$iDomain='?',$attrs=array()) create nickname for any gw-object
  */
 class common {
     /**
