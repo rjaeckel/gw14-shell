@@ -322,12 +322,12 @@ class apiResult extends rest\apiResult
      * @return string|\static the link url or the data loaded
      * @throws Exception if the link does not exist
      */
-    function link($name, $get = false, $data=null)
+    function link($name, $get = false, $data=null, $qryStr='')
     {
         foreach ($this(@links) as $link) {
             if ($link->{'@title'} == $name) {
                 $action = $get ? is_string($get) ? $get : @get : false;
-                return $get ? $this->request->apiInstance->$action($link->{'@href'},$data) : $link->{'@href'};
+                return $get ? $this->request->apiInstance->$action($link->{'@href'}.'?'.$qryStr,$data) : $link->{'@href'};
             }
         }
         throw new Exception ("Link does not exist: $name");
@@ -396,6 +396,25 @@ class apiResult extends rest\apiResult
             return $this('@url');
         } else {
             return call_user_func_array($this->request->apiInstance,array_merge(array($this('@url')),func_get_args()));
+        }
+    }
+
+    /**
+     * get current object's url-property and append a string to it's url or interact with the new url
+     * @param string $append string to be appended to the element's url
+     * @param string $method GET|POST|PUT|DELETE
+     * @param mixed $data payload or query-string, may repeat
+     *
+     * @return self|string
+     */
+    function urlAppend($append,$method=null,$data=null) {
+        $url = $this->url();
+        if(substr($url,-1)!=='/') $url.='/';
+        if (1==func_num_args()) {
+            return $url.$append;
+        } else {
+            $args = func_get_args(); array_shift($args);
+            return call_user_func_array($this->request->apiInstance,array_merge(array($url.$append),$args));
         }
     }
 
