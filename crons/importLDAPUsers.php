@@ -277,11 +277,18 @@ function logWrite($msg,$target=STDOUT,$eol="\r") {
  * @throws Exception if no entry was found
  */
 function searchLDAP ($searchKey) {
+    $loop=0;
     do {
         /** @var apiResult|iListResult|iUser[] $sr */
         // directory search could fail as there are quite a lot connections...
-        $sr = Directory::search(null, 'filter=(' . $searchKey . ')');
-    } while (substr($sr->header('http/1.1'), 0, 1) != '2');
+        try {
+            $loop++;
+            $sr = Directory::search( null, 'filter=(' . $searchKey . ')' );
+        } catch (Exception $e) {
+            $sr=false;
+            logWrite("LDAP Search #$loop failed: ". $e->getMessage(),STDERR,"\n");
+        }
+    } while (!$sr || substr($sr->header('http/1.1'), 0, 1) != '2');
     // read out email-address data
     if(isset($sr->resultInfo) && $sr->resultInfo->outOf==0) {
         global $directoryId;
@@ -386,7 +393,7 @@ if(cfg::$move||cfg::$update) {
                                         (0===stripos($user->preferredEmailId,'gesperrt_'));
 
                         if(!$deletedState && (0==($comp()&4)||0==($comp()&8))) {//email-address changed, create nickname
-                            worker()->enqueue(function()use($user){
+                            worker()->enqueue(function()use($user,$ldapMail){
                                 // generate java-timestamp -> time()*1000 for expiration date
                                 $exp=1000*(
                                         mktime(0,0,0) // midnight +
@@ -401,7 +408,35 @@ if(cfg::$move||cfg::$update) {
                                         @visibility=>@NONE,
                                         @expirationDate=>$exp
                                     )
-                                );
+                                )->reload();
+
+                                $givenName=$user->givenName;
+                                $surname=$user->surname;
+                                $internetDomain=$user->internetDomainName->value;
+                                $preferredEmailId=$user->preferredEmailId;
+                                $uid=$user->name;
+                                $mail=<<<EMAIL
+Sehr geehrte*r $givenName $surname,
+
+aufgrund einer Namensänderung wurde die E-Mail-Adresse zu Ihrem Account "$uid" automatisch von "$preferredEmailId@$internetDomain" auf "$ldapMail" geändert. Die alte Adresse wird automatisch 90 Tage lang auf die neue umgeleitet.
+
+Nutzen Sie bitte diese Zeit um alle Ihre Korrespondenten über die neue Adresse zu informieren und bestehende Verknüpfungen mit der alten Adresse, wie Weiterleitungen und Registrierungen, anzupassen. Bitte überprüfen Sie ggf. auch Ihre Signatur und Abwesenheitsnachricht.
+
+Sollten Sie keinen GroupWise-Client verwenden, müssen Absenderadresse und -name zu Ihrem E-Mail-Konto auf "$ldapMail" angepasst werden.
+
+Bei Fragen oder Problemen antworten Sie einfach auf diese E-Mail.
+
+Mit freundlichen Grüßen
+
+Ihr E-Mail-Team des ITZ
+
+EMAIL;
+                                $subject="Neue E-Mail-Adresse";
+                                $to=$ldapMail;
+                                mail($to,$subject,$mail,implode("\r\n",array(
+                                    "From: ".common::def('__mailFrom'),
+                                    "X-Mailer: gw-admin-shell PHP/".phpversion()
+                                )));
                             })->work(false);
                         }
                     }
