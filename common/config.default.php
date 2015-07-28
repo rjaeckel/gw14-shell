@@ -33,6 +33,9 @@ def('__root',
 def('__listDb',serialize(
     array("PDO-DSN","USER","PASS")));
 
+// cron notification from address
+def('__mailFrom','E-Mail Admin <postmaster@domain.tld>');
+
 //directory to put development files into
 def('__devDocOutputDirectory', __root.'dev/');
 
