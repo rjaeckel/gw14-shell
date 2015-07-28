@@ -29,6 +29,10 @@ def('__root',
     realpath(__DIR__.'/..').'/');
     //'../');
 
+// database dsn for pdo to store information for our idm...
+def('__listDb',serialize(
+    array("PDO-DSN","USER","PASS")));
+
 //directory to put development files into
 def('__devDocOutputDirectory', __root.'dev/');
 
