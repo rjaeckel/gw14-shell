@@ -14,6 +14,9 @@
  * if no flags are given all will be set
  */
 
+define('__devmode',true);
+define('__devRequests',true);
+
 require_once "application.php";
 require_once 'helpers/worker.cls.php';
 
@@ -21,17 +24,14 @@ use mlu\groupwise\apiResult,
     mlu\common,
     mlu\groupwise\wadl\directory,
     mlu\groupwise\wadl\user,
-    mlu\groupwise\wadl\internetdomain,
     mlu\groupwise\wadl\system,
-    mlu\groupwise\xsd\internetDomain as iInternetDomain,
     mlu\groupwise\xsd\user as iUser,
-    mlu\groupwise\xsd\group as iGroup,
     mlu\groupwise\xsd\dirImport as iDirImport,
     mlu\groupwise\xsd\postOffice as iPostOffice,
     mlu\groupwise\xsd\moveRequest as iMoveRequest,
     mlu\groupwise\xsd\moveSource as iMoveSource,
-    mlu\groupwise\xsd\listResult as iListResult,
     mlu\groupwise\xsd\syncResult as iSyncResult,
+    mlu\groupwise\listCache as cache,
     Exception as E
     ;
 
@@ -39,6 +39,11 @@ use mlu\groupwise\apiResult,
 $directoryId=@gwLDAP;
 $tempPOId="POST_OFFICE.gwdom0.system";
 $WorkerThreads=100;
+
+// preload POs and IDomains...
+cache::PostOffices( 'count=10000' );
+cache::InternetDomains( 'count=1000' );
+
 
 class cfg {
     public static $ldap;
@@ -59,10 +64,10 @@ class cfg {
             }
         }
         foreach($fields as $f) {
-            if(static::$$f) logWrite(" + $f\n");
+            if(static::$$f) common::logWrite(" + $f\n");
         }
         foreach(static::$options as $k=>$v) {
-            logWrite(" - $k:$v\n");
+            common::logWrite(" - $k:$v\n");
         }
     }
 }
@@ -71,29 +76,12 @@ cfg::init($argv);
 //die();*/
 
 /**
- * @return apiResult|iListResult|iPostOffice[]
- */
-function cachePostOffices() {
-    static $cache;
-    isset($cache)||$cache=postoffices('count=10000');
-    return $cache;
-}
-
-/**
- * @return apiResult|iListResult|iInternetDomain[]
- */
-function cacheInternetDomains() {
-    static $cache;
-    isset($cache)||$cache=internetdomain::getList();
-    //print_r($cache);
-    return $cache;
-}
-
-/**
  * @return Worker
  */
 function worker() {
     global $WorkerThreads;
+    isset($WorkerThreads)||$WorkerThreads=16;
+
     static $instance;
     isset($instance)||$instance=new Worker($WorkerThreads);
     return $instance;
@@ -104,7 +92,7 @@ function worker() {
  */
 // list post offices
 $PONames = array();
-cachePostOffices()->each(function($PO)use(&$PONames) {
+cache::PostOffices()->each(function($PO)use(&$PONames) {
     /** @var $PO iPostOffice */
     if(false === stripos($PO->id,".gw-extern."))
          $PONames[$PO->name]=$PO->id;
@@ -112,7 +100,7 @@ cachePostOffices()->each(function($PO)use(&$PONames) {
 
 // list internet domains
 $InternetDomainPostOffices=array();
-cacheInternetDomains()->each(function($iDom) use(&$InternetDomainPostOffices,$PONames) {
+cache::InternetDomains()->each(function($iDom) use(&$InternetDomainPostOffices,$PONames) {
     $POsOfInternetDomain=array_filter(
         preg_split("/[\r\n]+/",$iDom(@description,''))
     );
@@ -177,7 +165,7 @@ function importUsers($tempPOId) {
     } catch (E $e) {
         /** @var \mlu\groupwise\xsd\asyncStatus|apiResult $importJob*/
         while(!$importJob(@done,false)) {
-            logWrite("Waiting for import-job to finish...");
+            common::logWrite("Waiting for import-job to finish...");
             sleep(1);
             $importJob=$importJob->reload();
         }
@@ -191,12 +179,12 @@ function importUsers($tempPOId) {
             /** @var $res iSyncResult|apiResult **/
             try {
                 $res(@error);
-                logWrite("Failed to import <$res->ldapDn>: $res->message",STDERR,PHP_EOL);
+                common::logWrite("Failed to import <$res->ldapDn>: $res->message",STDERR,PHP_EOL);
             } catch (E $e) {
             }
         });
     } catch(E $e){}
-    logWrite("LDAP-Import Done.\n");
+    common::logWrite("LDAP-Import Done.\n");
 }
 
 /**
@@ -209,14 +197,14 @@ function importUsers($tempPOId) {
 function userUpdateAction($user,$internetDomain,$prefMailId,$more=array()) {
     return function() use($user,$internetDomain,$prefMailId,$more) {
         /** @var $user user|iUser */
-        logWrite(sprintf("Updating %s@%s...",$prefMailId,$internetDomain));
+        common::logWrite(sprintf("Updating %s@%s...",$prefMailId,$internetDomain));
         $userID=implode('.',array('USER',$user->domain,$user->postoffice,$user->user));
         try {
             try {
                 $lookup = system::setVars(array(@email => "$prefMailId@$internetDomain"))->lookupUserByEmail();
                 $err = $lookup('id');
 		        if($err==$userID) throw new Exception('UPDATE OK!');
-                logWrite("Could not update User <$userID>: Address <$prefMailId@$internetDomain> conflicts with <$err>", STDERR, PHP_EOL);
+                common::logWrite("Could not update User <$userID>: Address <$prefMailId@$internetDomain> conflicts with <$err>", STDERR, PHP_EOL);
             } catch (\Exception $e) {
                 // check if user should be disabled or "deleted" by email-id
                 $mailPrefix=strtolower(array_shift(explode('_',$prefMailId)));
@@ -248,53 +236,9 @@ function userUpdateAction($user,$internetDomain,$prefMailId,$more=array()) {
                 );
             };
         } catch(E $e) {
-            logWrite(sprintf("Could not update %s <%s@%s>: %s\n",$userID,$prefMailId,$internetDomain,$e->getMessage()),STDERR,PHP_EOL);
+            common::logWrite(sprintf("Could not update %s <%s@%s>: %s\n",$userID,$prefMailId,$internetDomain,$e->getMessage()),STDERR,PHP_EOL);
         }
     };
-}
-
-function logWrite($msg,$target=STDOUT,$eol="\r") {
-    global $argv;
-    #$cols = ((int)`if [ $-==*i* ]; then tput cols; fi`);
-    $cols = ((int)`if [ -t 0 ]; then tput cols; fi`);
-    $s = sprintf("[%s %s] %s",
-        date("d.m.Y-H:i:s"),
-        basename($argv[0],'.php'),
-        $msg
-    );
-    $out = $cols?substr($s,0,$cols):$s;
-
-    fwrite($target,sprintf("%-{$cols}s$eol",$out));
-}
-
-/**
- * search ldap using the api
- *
- * requires global $directoryId to be set
- *
- * @param $searchKey string ldap-search string
- * @return iUser|iGroup|apiResult
- * @throws Exception if no entry was found
- */
-function searchLDAP ($searchKey) {
-    $loop=0;
-    do {
-        /** @var apiResult|iListResult|iUser[] $sr */
-        // directory search could fail as there are quite a lot connections...
-        try {
-            $loop++;
-            $sr = Directory::search( null, 'filter=(' . $searchKey . ')' );
-        } catch (Exception $e) {
-            $sr=false;
-            logWrite("LDAP Search #$loop failed: ". $e->getMessage(),STDERR,"\n");
-        }
-    } while (!$sr || substr($sr->header('http/1.1'), 0, 1) != '2');
-    // read out email-address data
-    if(isset($sr->resultInfo) && $sr->resultInfo->outOf==0) {
-        global $directoryId;
-        throw new Exception("No Entry for <{$searchKey}> in <$directoryId>");
-    }
-    return $sr->item();
 }
 
 /**
@@ -305,7 +249,7 @@ function searchLDAP ($searchKey) {
  */
 function userMoveAction($targetPO,$users) {
     return function() use($targetPO,$users) {
-        logWrite(sprintf("Moving %d users to PO %s...",
+        common::logWrite(sprintf("Moving %d users to PO %s...",
             count($users),
             $targetPO
         ));
@@ -319,12 +263,15 @@ function userMoveAction($targetPO,$users) {
                 )
             );
         } catch (E $e) {
-            logWrite(sprintf("Could move %d users to  <%s>: %s\n",count($users),$targetPO,$e->getMessage()),STDERR,PHP_EOL);
+            common::logWrite(sprintf("Could move %d users to  <%s>: %s\n",count($users),$targetPO,$e->getMessage()),STDERR,PHP_EOL);
         }
     };
 }
-logWrite("Started user import...",STDOUT,PHP_EOL);
+
+common::logWrite("Started user import...",STDOUT,PHP_EOL);
+
 cfg::$ldap&&importUsers($tempPOId);
+
 if(cfg::$move||cfg::$update) {
     // generate update-list
     $filter = 'attrs=ldapdn,preferredemailid,internetdomainname,title,givenName,surname,visibility&count=5000&directoryId=' . $directoryId;
@@ -339,24 +286,24 @@ if(cfg::$move||cfg::$update) {
         $page++;
 	    $current=0;
         $usersToMove = array();
-        # logWrite(sprintf("Working page %d...",$page));
+        # common::logWrite(sprintf("Working page %d...",$page));
         if(isset($usersToUpdate->resultInfo)&&isset($usersToUpdate->resultInfo->outOf)&&$usersToUpdate->resultInfo->outOf==0)
             break;
         $usersToUpdate->each(function ($user) use (&$usersToMove,&$current,$page) {
             /* @var $user iUser|apiResult */
-            logWrite(sprintf("Working page %d/%d (%s)...",$page,++$current,$user->id));
+            common::logWrite(sprintf("Working page %d/%d (%s)...",$page,++$current,$user->id));
             $reference = $user->split(@id, '', @domain, @postoffice, @user);
             // ldap-search
             $searchKey = array_shift(explode(',', $user->ldapDn));
             try {
-                $ldapRes = searchLDAP($searchKey);
+                $ldapRes = common::searchLDAP($searchKey);
                 $ldapMail = strtolower($ldapRes->emailAddresses[0]);
                 $mailParts = explode('@', $ldapMail);
                 $prefMailId = array_shift($mailParts);
                 $internetDomain = array_shift($mailParts);
             } catch (Exception $e) {
-                logWrite("LDAP Search failed for User <{$user->id}> (s: $searchKey): {$e->getMessage()}",STDERR,"\n");
-                logWrite(" - - Trace: ".$e->getTraceAsString(),STDERR,"\n");
+                common::logWrite("LDAP Search failed for User <{$user->id}> (s: $searchKey): {$e->getMessage()}",STDERR,"\n");
+                common::logWrite(" - - Trace: ".$e->getTraceAsString(),STDERR,"\n");
                 // break each-function here
                 return;
             }
@@ -392,14 +339,15 @@ if(cfg::$move||cfg::$update) {
                                         (0===stripos($user->preferredEmailId,'geloescht_'))||
                                         (0===stripos($user->preferredEmailId,'gesperrt_'));
 
-                        if(!$deletedState && (0==($comp()&4)||0==($comp()&8))) {//email-address changed, create nickname
-                            worker()->enqueue(function()use($user,$ldapMail){
+                        if(!$deletedState && (0==($comp()&4)||0==($comp()&8))) {
+                        //email-address changed, create nickname
+                            worker()->enqueue(function()use($user,$ldapMail,$ldapRes){
                                 // generate java-timestamp -> time()*1000 for expiration date
                                 $exp=1000*(
                                         mktime(0,0,0) // midnight +
                                         +7776000    // 90 days -> 3600s*24*90
                                     );
-                                logWrite("Creating Nickname for <{$user->id}>",STDERR,"\n");
+                                common::logWrite("Creating Nickname for <{$user->id}>",STDERR,"\n");
                                 common::createNickname(
                                     $user->id,
                                     $user->preferredEmailId,
@@ -410,17 +358,19 @@ if(cfg::$move||cfg::$update) {
                                     )
                                 )->reload();
 
-                                $givenName=$user->givenName;
-                                $surname=$user->surname;
+                                $givenName=$ldapRes(@givenName,'');
+                                $surname=$ldapRes(@surname,'');
+                                $title=$ldapRes(@title,'');
+                                if($title)$title.=' ';
                                 $internetDomain=$user->internetDomainName->value;
                                 $preferredEmailId=$user->preferredEmailId;
                                 $uid=$user->name;
                                 $mail=<<<EMAIL
-Sehr geehrte*r $givenName $surname,
+Sehr geehrte*r $title$givenName $surname,
 
 aufgrund einer Namensänderung wurde die E-Mail-Adresse zu Ihrem Account "$uid" automatisch von "$preferredEmailId@$internetDomain" auf "$ldapMail" geändert. Die alte Adresse wird automatisch 90 Tage lang auf die neue umgeleitet.
 
-Nutzen Sie bitte diese Zeit um alle Ihre Korrespondenten über die neue Adresse zu informieren und bestehende Verknüpfungen mit der alten Adresse, wie Weiterleitungen und Registrierungen, anzupassen. Bitte überprüfen Sie ggf. auch Ihre Signatur und Abwesenheitsnachricht.
+Nutzen Sie bitte diese Zeit, um alle Ihre Korrespondenten über die neue Adresse zu informieren und bestehende Verknüpfungen mit der alten Adresse, wie Weiterleitungen und Registrierungen, anzupassen. Bitte überprüfen Sie ggf. auch Ihre Signatur und Abwesenheitsnachricht.
 
 Sollten Sie keinen GroupWise-Client verwenden, müssen Absenderadresse und -name zu Ihrem E-Mail-Konto auf "$ldapMail" angepasst werden.
 
@@ -435,13 +385,13 @@ EMAIL;
                                 $to=$ldapMail;
                                 mail($to,$subject,$mail,implode("\r\n",array(
                                     "From: ".common::def('__mailFrom'),
-                                    "X-Mailer: gw-admin-shell PHP/".phpversion()
-                                )));
+                                    "X-Mailer: gw-admin-shell PHP/".phpversion(),
+                                )))||common::logWrite("Could not send nickname notification to <$to>",STDERR,"\n");
                             })->work(false);
                         }
                     }
                 } catch (E $e) {
-                    logWrite("Could not update User: {$e->getMessage()}",STDERR,"\n");
+                    common::logWrite("Could not update User: {$e->getMessage()}",STDERR,"\n");
                     #worker()->enqueue(userUpdateAction(user::setVars($reference), $internetDomain, $prefMailId))->work(false);
                 }
             }
@@ -453,11 +403,9 @@ EMAIL;
                     //if(!stripos($userPo,'.'.$user(@postOfficeName).'.')
                     $usersToMove[$userPo][] = $user->extract(@id)->content;
                 } catch (E $e) {
-                    logWrite("Could not move user <{$user->id}>: " . $e->getMessage(),STDERR,"\n");
+                    common::logWrite("Could not move user <{$user->id}>: " . $e->getMessage(),STDERR,"\n");
                 }
             }
-
-
         });
         worker()->work()->wait();
         // move users
@@ -469,5 +417,5 @@ EMAIL;
     //echo "\n";
 }
 
-logWrite("Done.",STDOUT,"\n");
+common::logWrite("Done.",STDOUT,"\n");
 //fwrite(STDOUT,sprintf("[%s] Done.   \n",date("d.m.Y h:i:s")));
