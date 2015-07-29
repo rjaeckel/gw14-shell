@@ -36,7 +36,6 @@ class listCache {
 	static function __callStatic($name,$args) {
 		// look for cache or perform
 		isset(static::$cache[$name])||(static::$cache[$name]=call_user_func_array($name,$args));
-		var_dump(static::$cache[$name]);
 		return static::$cache[$name];
 	}
 }
