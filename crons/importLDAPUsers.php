@@ -14,8 +14,8 @@
  * if no flags are given all will be set
  */
 
-define('__devmode',true);
-define('__devRequests',true);
+#define('__devmode',true);
+#define('__devRequests',true);
 
 require_once "application.php";
 require_once 'helpers/worker.cls.php';
