@@ -249,10 +249,11 @@ function userUpdateAction($user,$internetDomain,$prefMailId,$more=array()) {
  */
 function userMoveAction($targetPO,$users) {
     return function() use($targetPO,$users) {
-        common::logWrite(sprintf("Moving %d users to PO %s...",
+        common::logWrite(sprintf("Moving %d users to PO %s: %s",
             count($users),
-            $targetPO
-        ));
+            $targetPO,
+            implode(' ',array_map(function($u){return $u->id;},$users))
+        ),STDERR);
         /** @var $move iMoveRequest */
         /** @var $users iMoveSource[] */
         try {
