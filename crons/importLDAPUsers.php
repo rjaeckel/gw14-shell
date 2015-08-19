@@ -253,7 +253,7 @@ function userMoveAction($targetPO,$users) {
             count($users),
             $targetPO,
             implode(' ',array_map(function($u){return $u->id;},$users))
-        ),STDERR);
+        ),STDERR,"\n");
         /** @var $move iMoveRequest */
         /** @var $users iMoveSource[] */
         try {
@@ -352,7 +352,7 @@ if(cfg::$move||cfg::$update) {
                                 common::createNickname(
                                     $user->id,
                                     $user->preferredEmailId,
-                                    $user->internetDomainName->value,
+                                    $user->internetDomainName,
                                     array(
                                         @visibility=>@NONE,
                                         @expirationDate=>$exp

@@ -35,4 +35,4 @@ eoi;
     exit($argc);
 }
 
-echo common::createNickname($uid,$emailId,$iDomain);
+echo common::createNickname($uid,$emailId,(object)array(@value=>$iDomain,@inherited=>false,@exclusive=>true));
