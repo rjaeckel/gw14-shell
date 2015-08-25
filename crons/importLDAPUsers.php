@@ -369,9 +369,13 @@ if(cfg::$move||cfg::$update) {
                                 $mail=<<<EMAIL
 Sehr geehrte*r $title$givenName $surname,
 
-aufgrund einer Namensänderung wurde die E-Mail-Adresse zu Ihrem Account "$uid" von "$preferredEmailId@$internetDomain" auf "$ldapMail" geändert. Die alte Adresse wird automatisch 90 Tage lang auf die neue umgeleitet.
+aufgrund einer Namensänderung wurde die E-Mail-Adresse zu Ihrem Account "$uid" von "$preferredEmailId@$internetDomain" auf "$ldapMail" geändert.
 
-Nutzen Sie bitte diese Zeit, um alle Ihre Korrespondenten über die neue Adresse zu informieren und bestehende Verknüpfungen mit der alten Adresse, wie Weiterleitungen und Registrierungen, anzupassen. Bitte überprüfen Sie ggf. auch Ihre Signatur und Abwesenheitsnachricht.
+Die alte Adresse wird automatisch 90 Tage lang auf die neue umgeleitet.
+
+Nutzen Sie bitte diese Zeit, um alle Ihre Korrespondenten über die neue Adresse zu informieren und bestehende Verknüpfungen mit der alten Adresse, wie Weiterleitungen und Registrierungen, anzupassen.
+
+Bitte überprüfen Sie ggf. auch Ihre Signatur und Abwesenheitsnachricht.
 
 Sollten Sie keinen GroupWise-Client verwenden, müssen Absenderadresse und -name zu Ihrem E-Mail-Konto auf "$ldapMail" angepasst werden.
 
