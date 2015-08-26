@@ -377,7 +377,7 @@ Nutzen Sie bitte diese Zeit, um alle Ihre Korrespondenten über die neue Adresse
 
 Bitte überprüfen Sie ggf. auch Ihre Signatur und Abwesenheitsnachricht.
 
-Sollten Sie keinen GroupWise-Client verwenden, müssen Absenderadresse und -name zu Ihrem E-Mail-Konto auf "$ldapMail" angepasst werden.
+Sollten Sie statt des GroupWise-Clients einen anderen lokalen Mailclient nutzen (wie Outlook, Thunderbird, Apple Mail etc.), so müssen Sie dort in Ihrem Mailkonto die Absenderadresse auf die neue Adresse umstellen.
 
 Bei Fragen oder Problemen antworten Sie einfach auf diese E-Mail.
 
@@ -392,6 +392,7 @@ EMAIL;
                                 mail($to,$subject,$mail,implode("\r\n",array(
                                     "From: ".common::def('__mailFrom'),
                                     "X-Mailer: gw-admin-shell PHP/".phpversion(),
+                                    #"Bcc: support@example.org",
                                 )))||common::logWrite("Could not send nickname notification to <$to>",STDERR,"\n");
                             })->work(false);
                         }
