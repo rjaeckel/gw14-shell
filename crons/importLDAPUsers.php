@@ -388,7 +388,7 @@ Ihr E-Mail-Team des ITZ
 EMAIL;
                                 $subject="Neue E-Mail-Adresse";
                                 $to = $ldapMail;
-                                $to .= ', ' . $preferredEmailId@$internetDomain;
+                                $to .= ', ' . $preferredEmailId . '@' . $internetDomain;
                                 mail($to,$subject,$mail,implode("\r\n",array(
                                     "From: ".common::def('__mailFrom'),
                                     "X-Mailer: gw-admin-shell PHP/".phpversion(),
