@@ -17,7 +17,7 @@ We've tried to make the api-wrapper runnable on a recent SLES-System, `SLES11SP3
 
 ### Runtime
  * PHP >= 5.3 - latest version on SLES11-SP3: `php53`
- * `php53-openssl` to receice the current wadl-information from https
+ * `php53-openssl` to receive the current wadl-information via https
  * `php53-json` or `php-xml` fitting the API's requirements and personal favor
  * ini-flag `short_open_tags` enabled or PHP>=5.4
  * curl binary accessible from php
@@ -38,7 +38,7 @@ zypper in php53 php53-pcntl php53-sysvsem php53-sysvshm php53-openssl git-core
  * Depending on the OS some features might be packaged directly into PHP
 
 ## <a name="cfg"></a>Configuration
- 1. checkout branch and init submodules
+ 1. checkout branch and init sub modules
       ```shell
       git clone git@github.com:uni-halle/gw14-shell
       git submodule init
@@ -166,6 +166,16 @@ Have a look at the attribute `maxOccurs`, which should be `unbounded` for this.
 
 * I recommend *PHPStorm* IDE by *JetBrains* to develop your own modules for the abstraction layer. This IDE is afaik the only one that supports statical magic methods on class-docs which are used very intense.
 * The XSD-abstraction classes are helpers for type-hints only; it was not planned to include or load them into the application.
+
+## Issues that are stated to be "working as designed"
+### Nickname internet addressing
+In opposite to any other `addressable` object Nicknames inherit the `internet domain` from their targets. By this it is possible to omit a manual
+ internet addressing configuration for them.
+
+But this creates an issue if you have two nicknames with identical preferred email-ID for two objects with different internet domains configured. The API/Admin-Console then returns a naming conflict.
+
+### Flat Forwarding
+... replaces the sender field
  
 ## Found a bug?
 
