@@ -1,6 +1,6 @@
 <?php
 namespace mlu;
-use mlu\common\functions;
+use mlu\common\functions,mlu\groupwise as gw;
 /*
  * function-autoloader
  */
@@ -8,23 +8,23 @@ use mlu\common\functions;
 /**
  * function-autoloader for common-folder
  * 
- * <p>perform a static call on this class to load the function dynamically</p>
+ * <p>perform a static call on this class to load and execute the function dynamically</p>
  *
  * @method static string dataParamStr(array $paramList, int $indent) @see function dataParamStr()
- * @method static mixed def ($name,$value) define a constant $name with value if it does not exist yet
- * @method static string[] getPostofficesForInternetDomain (string $iDomain) get the possible list of postoffice names for an internetdomain from it's description
+ * @method static mixed def ($name,$value=null) define a constant $name with value if it does not exist yet
+ * @method static string[] getPostofficesForInternetDomain (string $iDomain) get the possible list of post office names for an internet domain from it's description
  * @method static callable getStructSplitter (string $delimiter='.', bool $keepNumbered=true) returns a function that can be used to split an object's id into its parent's names
- * @method static groupwise\apiResult|groupwise\api gwApi(string $url,string $method='get', mixed $data=null) @see gwApi()
+ * @method static gw\apiResult|gw\api gwApi(string $url,string $method='get', mixed $data=null) @see gwApi()
  * @method static mixed[] memInfo() print memory usage info as notices
  * @method static string namespacePath (string $namespace) get the folder name for a namespace
- * @method static groupwise\apiResult|groupwise\xsd\postoffice pickSmallestPostoffice(); @see mlu\common\pickSmallestPostoffice()
+ * @method static gw\apiResult|gw\xsd\postoffice pickSmallestPostoffice(); @see mlu\common\pickSmallestPostoffice()
  * @method static object putEffectiveValues (object $target,array $effectives) set a bunch of effective values into $object
  * @method static mixed[] shellDoc(string $cls,string $function) @see function shellDoc
  * @method static null shellWrapProxyAction($class,$action,$classPrefix='mlu\groupwise\wadl') helper function to make wadl abstractions accessible by linux shell
  * @method static null write2file (string $fileName,string $data,string $data) write a bunch of strings into a file
  * @method static mixed[] xml2assoc(\XMLReader $xml,int $d=0) @see function xml2assoc
  * @method static object xsdTypeInfo (string $class, bool $recurse=false) get information about an xsd abstraction
- * @method static groupwise\apiResult|groupwise\xsd\Nickname createNickname ($uid,$emailID,$iDomain='?',$attrs=array()) create nickname for any gw-object
+ * @method static gw\apiResult|gw\xsd\Nickname createNickname ($uid,$emailID,$iDomain='?',$attrs=array()) create nickname for any gw-object
  */
 class common {
     /**
