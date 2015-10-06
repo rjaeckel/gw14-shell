@@ -3,6 +3,7 @@
 namespace mlu\groupwise;
 
 use mlu\groupwise\xsd\listResult;
+use mlu\groupwise\xsd\restAddressable;
 use \mlu\rest, \mlu\common, \mlu\value, \Exception;
 
 /**
@@ -10,6 +11,12 @@ use \mlu\rest, \mlu\common, \mlu\value, \Exception;
  * @method static string encode(mixed $object = null) encode a structure or object, my be called statically and in object context;
  * @method static mixed decode(string $str) transform a string into a structure
  * @method static apiResult merge(array $obj, array $obj = null) merge one or more objects together @see apiResult::_merge()
+ * @method apiResult|listResult seekUsers (string $match='') search for Users in current Object
+ * @method apiResult|listResult seekPostOffices (string $match='') search for Post Offices in current Object
+ * @method apiResult|listResult seekDomains (string $match='')
+ * @method apiResult|listResult seekBaseObjects (string $match='')
+ * @method apiResult|listResult seekNicknames (string $match='')
+ * @method apiResult|listResult seekGroups (string $match='')
  */
 class apiResult extends rest\apiResult
 {
@@ -164,6 +171,7 @@ class apiResult extends rest\apiResult
 
     /**
      * get an item of a data set by index
+     *
      * @param int|string $idx the item number or key; 0, if omitted
      * @return mixed|apiResult
      * @throws Exception if the item index does not exist.
@@ -511,6 +519,9 @@ class apiResult extends rest\apiResult
         if (\method_exists($this, $n = "_$name")) {
             return \call_user_func_array(array($this, $n), $arguments);
         }
+        if(preg_match("/^seek([a-z]+)/i",$name,$match)) {
+            return call_user_func_array(array($this,@seek),array_merge(array($match[1]),$arguments));
+        }
         throw new Exception("Undefined method: $name");
     }
 
@@ -571,5 +582,20 @@ class apiResult extends rest\apiResult
         $args=func_get_args();
         $args[0]=$this->$attr;
         return call_user_func_array(common::getStructSplitter(),$args);
+    }
+
+    /**
+     * use the current object's ID to search for items in it
+     *
+     * (wrapper for list/{TYPE}/{ID}
+     *
+     * @param $type string function to search with, based on @url /common/gwAdpi-common.php <p>
+     *              e.g PostOffices,Users,BaseObjects,Nicknames...</p>
+     * @param $qryStr string Query string to pass into search
+     *
+     * @return apiResult|listResult
+     */
+    public function seek($type,$qryStr='') {
+        return call_user_func_array($type,array($qryStr,$this(@id)));
     }
 }
