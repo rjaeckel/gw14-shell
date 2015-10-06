@@ -91,6 +91,8 @@ function generateListFunction($type) {
  * @return string[]
  */
 function gwTypes() {
+    $c = new \ReflectionClass('\mlu\groupwise\xsd\domainObjectType');
+    return array_map(function(&$v){return strtolower($v);},$c->getConstants());
     return array(
         'base_object','nickname','user','domain','post_office','group',
         'group_member','mta','library','poa','resource','directory',
