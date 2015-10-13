@@ -28,11 +28,9 @@ $users=$argv;
 echo "Target: ".($poId=Postoffices("name=$poName")->select('name',$poName)->item()->id)."\n";
 $userIDs=array();
 
-foreach ($users as $uName) {
-	$userIDs[]=Baseobjects("name=$uName")->select(@name,$uName)->item()->extract(@id)->content;
-}
-echo "Object to be moved:\n";
-foreach ($userIDs as $u) {
+echo "Object(s) to be moved:\n";
+foreach ( $users as $uName ) {
+	$userIDs[] = $u = Baseobjects( "name=$uName" )->select( @name, $uName )->item()->extract( @id )->content;
 	echo " - {$u->id}\n";
 }
 /** @var $moveRequest \mlu\groupwise\xsd\moveRequest */
