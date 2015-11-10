@@ -392,6 +392,7 @@ EMAIL;
                                 mail($to,$subject,$mail,implode("\r\n",array(
                                     "From: ".common::def('__mailFrom'),
                                     "X-Mailer: gw-admin-shell PHP/".phpversion(),
+                                    "Content-Type: text/plain; Charset=utf-8",
                                     #"Bcc: support@example.org",
                                 )))||common::logWrite("Could not send nickname notification to <$to>",STDERR,"\n");
                             })->work(false);
