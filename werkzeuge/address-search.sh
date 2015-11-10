@@ -1,3 +1,3 @@
 #!/bin/bash
 
-../gw.shell system.lookupUserByEmail -email=$1
+./gw.shell system.lookupUserByEmail -email=$1
