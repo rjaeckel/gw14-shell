@@ -21,14 +21,15 @@ _gwShell() {
     return 0
 }
 
-echo -n " - searching binaries... ">&2
-gwcompletes=""
-cActions=0
-for f in $dir/*; do
-    let "cActions++"
-    gwcompletes="$gwcompletes $( basename $f)"
-done;
-echo "$cActions found.">&2
+#echo -n " - searching binaries... ">&2
+#gwcompletes=""
+#cActions=0
+#for f in $dir/*; do
+#    let "cActions++"
+#    gwcompletes="$gwcompletes $( basename $f)"
+#done;
+gwcompletes=$(ls -1 $dir/);
+#echo "$cActions found.">&2
 echo " - setting up bash-completition...">&2
 complete -o nospace -F _gwShell $gwcompletes
 echo " - defining pretty printer alias"
