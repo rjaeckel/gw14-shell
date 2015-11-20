@@ -24,7 +24,7 @@ $agents=apiResult::merge(array(
 	$fn=$type.'s';
 	$fn()->each(function($obj)use($outputDir,$match,$type){
 		/** @var $obj apiResult */
-		$fname=implode('.',array(
+		$fName=implode('.',array(
 			$obj($match.'Name'),
 			$type,
 			'cfg'
