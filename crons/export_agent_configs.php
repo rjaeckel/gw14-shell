@@ -8,29 +8,37 @@ use
 	mlu\groupwise\apiResult
 	;
 
+// configuration
 $outputDir='/var/adm/gw-agent-configs';
 
 require('application.php');
 
-//  create output directory, if neccessary, suppress warnings by @-prefix
+//  create output directory, if necessary; suppress warnings by @-prefix
 @mkdir($outputDir,0750,true);
 
 
 $agents=apiResult::merge(array(
+	// $type->$match
 	'MTA'=>'domain',
 	'POA'=>'postOffice',
 	'GWIA'=>'domain'
  ))->each(function($match,$type)use($outputDir){
-	$fn=$type.'s';
+	// set the function to read out the agents by type
+	$fn=$type.'s'; // implies MTAs, POAs or GWIAs
 	$fn()->each(function($obj)use($outputDir,$match,$type){
 		/** @var $obj apiResult */
+		// create the filename -> {AGENTNAME}.{AGENTTYPE}.cfg
 		$fName=implode('.',array(
-			$obj($match.'Name'),
+			// Agent name is defined by the container.
+			$obj($match.'Name'), // $obj->{$match.'Name'}
 			$type,
 			'cfg'
 		));
+		// get raw contents
 		$cfg = (array)$obj->content;
+		// sort by keys
 		ksort($cfg);
+		// save to file
 		file_put_contents($outputDir.DIRECTORY_SEPARATOR.$fName,print_r($cfg,1));
 	});
 });
