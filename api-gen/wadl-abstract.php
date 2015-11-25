@@ -628,6 +628,7 @@ function findClassName($methodlist,$identifiers,$callback) {
 function cleanUpMethodName($name) {
     $renames = array(
         'list'=>'getList',
+        'object'=>'getObject',
         'createresource'=>'create',
         'updateclassofservice'=>'update',
         'deleteclassofservice'=>'delete',
