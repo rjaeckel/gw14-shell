@@ -15,7 +15,8 @@ require('application.php');
 
 //  create output directory, if necessary; suppress warnings by @-prefix
 @mkdir($outputDir,0750,true);
-
+// remove current cfg-files to get git to know which agents were removed
+@`rm $outputDir/*.cfg`;
 
 $agents=apiResult::merge(array(
 	// $type->$match
