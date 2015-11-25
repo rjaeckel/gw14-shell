@@ -581,11 +581,11 @@ function getFilledNodes($list,$level=0) {
             foreach($keys as $name) {
                 $myMethods[cleanUpMethodName($name)?:$name]=$methods->$name;
             }
-            $myMethods['__className']=$className=findClassName($myMethods, array('update','create','get'), function($m){
+            $myMethods['__className']=($className=findClassName($myMethods, array('update','create','get'), function($m){
                 return $m->requestType?:$m->responseType?:false;
                 })?:(($c=count(urlStack()))>2?
                         urlStack($c-2)
-                        :urlStack(0));
+                        :urlStack(0)))=='object'?'obj':$className;
             ksort($myMethods);
             mergeAndReduce(array($className=>(object)$myMethods), $res);
         }
