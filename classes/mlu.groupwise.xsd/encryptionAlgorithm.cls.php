@@ -9,4 +9,5 @@ abstract class encryptionAlgorithm extends \mlu\rest\xsd_restriction {
 	const RC4='RC4';
 	const DES='DES';
 	const DES3='DES3';
+	const AES='AES';
 }

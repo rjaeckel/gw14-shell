@@ -10,6 +10,10 @@ abstract class directoryLink {
 	 */
 	public $directoryId;
 	/**
+	 * @var boolean $importPhoto
+	 */
+	public $importPhoto;
+	/**
 	 * @var string $ldapDn
 	 * minOccurs: 0
 	 */

@@ -220,6 +220,16 @@ abstract class poa extends restAgent{
 	 */
 	public $quickFinderIndexBaseMinute;
 	/**
+	 * @var int $quickFinderIndexItemsPerUser
+	 * minOccurs: 0
+	 */
+	public $quickFinderIndexItemsPerUser;
+	/**
+	 * @var int $quickFinderIndexThreads
+	 * minOccurs: 0
+	 */
+	public $quickFinderIndexThreads;
+	/**
 	 * @var int $quickFinderIntervalMinute
 	 * minOccurs: 0
 	 */

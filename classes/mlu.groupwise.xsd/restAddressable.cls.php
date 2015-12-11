@@ -62,10 +62,20 @@ abstract class restAddressable extends restInternetAddressingProps{
 	 */
 	public $postOfficeName;
 	/**
+	 * @var string $preferredEmailAddress
+	 * minOccurs: 0
+	 */
+	public $preferredEmailAddress;
+	/**
 	 * @var string $preferredEmailId
 	 * minOccurs: 0
 	 */
 	public $preferredEmailId;
+	/**
+	 * @var int $syncNotFoundTime
+	 * minOccurs: 0
+	 */
+	public $syncNotFoundTime;
 	/**
 	 * @var visibility $visibility
 	 * minOccurs: 0

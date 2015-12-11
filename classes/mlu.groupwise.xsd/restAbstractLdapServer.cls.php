@@ -10,6 +10,11 @@ abstract class restAbstractLdapServer extends restGwObject{
 	 */
 	public $address;
 	/**
+	 * @var boolean $authDisablePasswordChange
+	 * minOccurs: 0
+	 */
+	public $authDisablePasswordChange;
+	/**
 	 * @var string $description
 	 * minOccurs: 0
 	 */

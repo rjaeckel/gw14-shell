@@ -57,6 +57,36 @@ abstract class mta extends restAgent{
 	 */
 	public $externalSync;
 	/**
+	 * @var boolean $ldapEnabled
+	 * minOccurs: 0
+	 */
+	public $ldapEnabled;
+	/**
+	 * @var int $ldapPort
+	 * minOccurs: 0
+	 */
+	public $ldapPort;
+	/**
+	 * @var string $ldapSslCertificateFile
+	 * minOccurs: 0
+	 */
+	public $ldapSslCertificateFile;
+	/**
+	 * @var string $ldapSslKeyFile
+	 * minOccurs: 0
+	 */
+	public $ldapSslKeyFile;
+	/**
+	 * @var string $ldapSslKeyPassword
+	 * minOccurs: 0
+	 */
+	public $ldapSslKeyPassword;
+	/**
+	 * @var sslStatus $ldapUsesSsl
+	 * minOccurs: 0
+	 */
+	public $ldapUsesSsl;
+	/**
 	 * @var int $logMaxAge
 	 * minOccurs: 0
 	 */
@@ -91,6 +121,11 @@ abstract class mta extends restAgent{
 	 * minOccurs: 0
 	 */
 	public $reportsCleanupDays;
+	/**
+	 * @var boolean $resetAgentRecord
+	 * minOccurs: 0
+	 */
+	public $resetAgentRecord;
 	/**
 	 * @var int $scanCycle
 	 * minOccurs: 0

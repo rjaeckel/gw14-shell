@@ -230,6 +230,11 @@ abstract class user extends restDeliverable{
 	 */
 	public $pagerNumber;
 	/**
+	 * @var base64Binary $pictureBlob
+	 * minOccurs: 0
+	 */
+	public $pictureBlob;
+	/**
 	 * @var string $postOfficeBox
 	 * minOccurs: 0
 	 */

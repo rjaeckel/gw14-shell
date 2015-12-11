@@ -105,11 +105,6 @@ abstract class directory extends restAbstractLdapServer{
 	 */
 	public $adminDefined9;
 	/**
-	 * @var boolean $authDisablePasswordChange
-	 * minOccurs: 0
-	 */
-	public $authDisablePasswordChange;
-	/**
 	 * @var string $authPassword
 	 * minOccurs: 0
 	 */
@@ -154,6 +149,11 @@ abstract class directory extends restAbstractLdapServer{
 	 * minOccurs: 0
 	 */
 	public $hasSyncPassword;
+	/**
+	 * @var ldapPhotoAttribute $ldapPhotoAttribute
+	 * minOccurs: 0
+	 */
+	public $ldapPhotoAttribute;
 	/**
 	 * @var string $syncDomain
 	 * minOccurs: 0

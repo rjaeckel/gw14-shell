@@ -22,6 +22,10 @@ abstract class restDirectorySearchOptions extends restDirectoryJobOptions{
 	 */
 	public $filter;
 	/**
+	 * @var boolean $importPhotos
+	 */
+	public $importPhotos;
+	/**
 	 * @var memberType[] $objectTypes
 	 * minOccurs: 0
 	 * maxOccurs: unbounded

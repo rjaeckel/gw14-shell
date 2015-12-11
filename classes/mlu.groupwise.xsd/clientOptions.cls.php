@@ -15,6 +15,21 @@ abstract class clientOptions extends propertiesProxy{
 	 */
 	public $alarmWhenAccepted;
 	/**
+	 * @var booleanWrapper $allowPictureSelfProvision
+	 * minOccurs: 0
+	 */
+	public $allowPictureSelfProvision;
+	/**
+	 * @var booleanWrapper $allowProtectionFromCleanup
+	 * minOccurs: 0
+	 */
+	public $allowProtectionFromCleanup;
+	/**
+	 * @var longWrapper $allowProtectionGraceDate
+	 * minOccurs: 0
+	 */
+	public $allowProtectionGraceDate;
+	/**
 	 * @var returnNotificationWrapper $appointmentAcceptedNotification
 	 * minOccurs: 0
 	 */
@@ -410,6 +425,11 @@ abstract class clientOptions extends propertiesProxy{
 	 */
 	public $junkMailCleanupDays;
 	/**
+	 * @var booleanWrapper $keyShieldSingleSignon
+	 * minOccurs: 0
+	 */
+	public $keyShieldSingleSignon;
+	/**
 	 * @var booleanWrapper $limitsApplyToCache
 	 * minOccurs: 0
 	 */
@@ -600,6 +620,11 @@ abstract class clientOptions extends propertiesProxy{
 	 */
 	public $ruleReplyLoop;
 	/**
+	 * @var scanSearchAttachmentsWrapper $scanSearchAttachments
+	 * minOccurs: 0
+	 */
+	public $scanSearchAttachments;
+	/**
 	 * @var longWrapper $sendExpireDays
 	 * minOccurs: 0
 	 */
@@ -649,6 +674,11 @@ abstract class clientOptions extends propertiesProxy{
 	 * minOccurs: 0
 	 */
 	public $signDigitally;
+	/**
+	 * @var signingAlgorithmWrapper $signingAlgorithm
+	 * minOccurs: 0
+	 */
+	public $signingAlgorithm;
 	/**
 	 * @var booleanWrapper $singleSignon
 	 * minOccurs: 0

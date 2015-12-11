@@ -9,4 +9,6 @@ abstract class encryptionKeySize extends \mlu\rest\xsd_restriction {
 	const KEY_56='KEY_56';
 	const KEY_64='KEY_64';
 	const KEY_128='KEY_128';
+	const KEY_192='KEY_192';
+	const KEY_256='KEY_256';
 }

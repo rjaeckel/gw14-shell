@@ -90,6 +90,11 @@ abstract class internetAgent extends restGateway{
 	 */
 	public $directorySynchronization;
 	/**
+	 * @var boolean $disableEsmtpExtensions
+	 * minOccurs: 0
+	 */
+	public $disableEsmtpExtensions;
+	/**
 	 * @var boolean $disableImip
 	 * minOccurs: 0
 	 */
@@ -149,6 +154,16 @@ abstract class internetAgent extends restGateway{
 	 * minOccurs: 0
 	 */
 	public $force7BitOut;
+	/**
+	 * @var boolean $forceInboundAuthentication
+	 * minOccurs: 0
+	 */
+	public $forceInboundAuthentication;
+	/**
+	 * @var boolean $forceOutboundAuthentication
+	 * minOccurs: 0
+	 */
+	public $forceOutboundAuthentication;
 	/**
 	 * @var string $foreignId
 	 * minOccurs: 0
@@ -476,6 +491,11 @@ abstract class internetAgent extends restGateway{
 	 * minOccurs: 0
 	 */
 	public $relayHost;
+	/**
+	 * @var boolean $requireSslForAuthentication
+	 * minOccurs: 0
+	 */
+	public $requireSslForAuthentication;
 	/**
 	 * @var int $retryCount
 	 * minOccurs: 0

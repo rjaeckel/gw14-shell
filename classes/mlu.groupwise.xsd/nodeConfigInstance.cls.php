@@ -9,6 +9,11 @@ abstract class nodeConfigInstance {
 	 */
 	public $clustered;
 	/**
+	 * @var string $defaultTimeZoneId
+	 * minOccurs: 0
+	 */
+	public $defaultTimeZoneId;
+	/**
 	 * @var string $ipAddress
 	 * minOccurs: 0
 	 */
