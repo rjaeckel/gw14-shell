@@ -28,11 +28,11 @@ $agents=apiResult::merge(array(
 	$fn=$type.'s'; // implies MTAs, POAs or GWIAs
 	$fn()->each(function($obj)use($outputDir,$match,$type){
 		/** @var $obj apiResult */
-		// create the filename -> {AGENTNAME}.{AGENTTYPE}.cfg
+		// create the filename -> {AGENTTYPE}.{AGENTNAME}.cfg
 		$fName=implode('.',array(
+			$type,
 			// Agent name is defined by the container.
 			$obj($match.'Name'), // $obj->{$match.'Name'}
-			$type,
 			'cfg'
 		));
 		// get raw contents
