@@ -469,11 +469,11 @@ class apiResult extends rest\apiResult
         if (\method_exists($this, $n = "_$name")) {
             return \call_user_func_array(array($this, $n), $arguments);
         }
-	    if(preg_match("/^seek([a-z]+)/i",$name,$match)) {
-		    return call_user_func_array(array($this,@seek),array_merge(array($match[1]),$arguments));
-	    }
-	    if(preg_match("/^get([a-z]+)/i",$name,$match)) {
-		    return call_user_func_array(array($this,@getInstanceByUri),array_merge(array('\\mlu\\groupwise\\wadl\\'.lcfirst($match[1])),$arguments));
+        if(preg_match("/^seek([a-z]+)/i",$name,$match)) {
+            return call_user_func_array(array($this,@seek),array_merge(array($match[1]),$arguments));
+        }
+        if(preg_match("/^get([a-z]+)/i",$name,$match)) {
+	    return call_user_func_array(array($this,@getInstanceByUri),array_merge(array('\\mlu\\groupwise\\wadl\\'.lcfirst($match[1])),$arguments));
 	    }
         throw new Exception("Undefined method: $name");
     }
@@ -569,7 +569,6 @@ class apiResult extends rest\apiResult
      * @param $type string function to search with, based on @url /common/gwAdpi-common.php <p>
      *              e.g PostOffices,Users,BaseObjects,Nicknames...</p>
      * @param $qryStr string Query string to pass into search
-     *
      * @return apiResult|listResult
      */
     public function seek($type,$qryStr='') {
