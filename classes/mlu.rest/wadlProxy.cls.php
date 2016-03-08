@@ -193,4 +193,12 @@ abstract class wadlProxy {
     protected function _getMethodInfo($methodName) {
         return $this->methods->$methodName;
     }
+    /**
+     * reduces verbosity during var_dump and print_r
+     *
+     * @return array
+     */
+    function __debugInfo () {
+        return array_merge($this->vars,array('methods'=>array_keys((array)$this->methods)));
+    }
 }
