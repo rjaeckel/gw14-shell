@@ -2,6 +2,11 @@
 
 namespace mlu\groupwise;
 
+use mlu\groupwise\wadl\group;
+use mlu\groupwise\wadl\mta;
+use mlu\groupwise\wadl\poa;
+use mlu\groupwise\wadl\resource;
+use mlu\groupwise\wadl\user;
 use mlu\groupwise\xsd\listResult;
 use mlu\groupwise\xsd\restAddressable;
 use \mlu\rest, \mlu\common, \mlu\value, \Exception;
@@ -17,6 +22,12 @@ use \mlu\rest, \mlu\common, \mlu\value, \Exception;
  * @method apiResult|listResult seekBaseObjects (string $match='')
  * @method apiResult|listResult seekNicknames (string $match='')
  * @method apiResult|listResult seekGroups (string $match='')
+ * @method user getUser ($force=false)
+ * @method domain getDomain ($force=false)
+ * @method resource getResource ($force=false)
+ * @method poa getPoa ($force=false)
+ * @method mta getMta ($force=false)
+ * @method group getGroup ($force=false)
  */
 class apiResult extends rest\apiResult
 {
@@ -522,6 +533,9 @@ class apiResult extends rest\apiResult
         if(preg_match("/^seek([a-z]+)/i",$name,$match)) {
             return call_user_func_array(array($this,@seek),array_merge(array($match[1]),$arguments));
         }
+	    if(preg_match("/^get([a-z]+)/i",$name,$match)) {
+		    return call_user_func_array(array($this,@getInstanceByUri),array_merge(array('\\mlu\\groupwise\\wadl\\'.lcfirst($match[1])),$arguments));
+	    }
         throw new Exception("Undefined method: $name");
     }
 
@@ -592,10 +606,40 @@ class apiResult extends rest\apiResult
      * @param $type string function to search with, based on @url /common/gwAdpi-common.php <p>
      *              e.g PostOffices,Users,BaseObjects,Nicknames...</p>
      * @param $qryStr string Query string to pass into search
-     *
      * @return apiResult|listResult
      */
     public function seek($type,$qryStr='') {
         return call_user_func_array($type,array($qryStr,$this(@id)));
     }
+
+	/**
+	 * returns the wadl-proxy instance of $className to interact with
+	 *
+	 * @param $className
+	 *
+	 * @return rest\wadlProxy|$className
+	 * @throws Exception if Path lengths mismatch.
+	 */
+    function getInstanceByUri($className,$force=false){
+	    /** @var rest\wadlProxy $instance */
+	    $instance=new $className();
+	    // read out url of object an strip prefix
+		$url = preg_replace('/^\/?gwadmin-service\//','',$this->url());
+	    $uri=explode('/',$url);
+		// get url to compare from api
+	    $objectUri = explode('/',$instance->getMethodInfo('object')->path);
+	    // check for equal count on both comparators
+	    if(!$force && 0!=count($uri)-count($objectUri)) throw new Exception("Paths mismatch");
+	    // read out properties
+	    array_map(function($real,$template)use($instance){
+		    if(!preg_match('/(.*)\{(.*)\}(.*)/',$template,$matches)) return false;
+		    list(,$prefix,$name,$suffix)=$matches;
+		    if (preg_match("/$prefix(.*)$suffix/",$real,$matches)) {
+			    list( , $value ) = $matches;
+			    $instance->$name = $value;
+		    }
+	    },$uri,$objectUri);
+		return $instance;
+    }
 }
+
