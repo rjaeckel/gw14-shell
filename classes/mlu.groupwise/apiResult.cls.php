@@ -2,6 +2,11 @@
 
 namespace mlu\groupwise;
 
+use mlu\groupwise\wadl\group;
+use mlu\groupwise\wadl\mta;
+use mlu\groupwise\wadl\poa;
+use mlu\groupwise\wadl\resource;
+use mlu\groupwise\wadl\user;
 use mlu\groupwise\xsd\listResult;
 use mlu\groupwise\xsd\restAddressable;
 use \mlu\rest, \mlu\common, \mlu\value, \Exception;
@@ -17,6 +22,12 @@ use \mlu\rest, \mlu\common, \mlu\value, \Exception;
  * @method apiResult|listResult seekBaseObjects (string $match='')
  * @method apiResult|listResult seekNicknames (string $match='')
  * @method apiResult|listResult seekGroups (string $match='')
+ * @method user getUser ($force=false)
+ * @method domain getDomain ($force=false)
+ * @method resource getResource ($force=false)
+ * @method poa getPoa ($force=false)
+ * @method mta getMta ($force=false)
+ * @method group getGroup ($force=false)
  */
 class apiResult extends rest\apiResult
 {
@@ -38,6 +49,24 @@ class apiResult extends rest\apiResult
                     isset($this->statusCode) ? $this(@statusCode) : 0)
                 , $this(@httpStatusCode));
         }
+    }
+
+    /**
+     * Call-Overload for static context to make some methods accessible from static and object context
+     * factory
+     *
+     * the mentioned methods start with a single underscore
+     * by calling a method from static context a default object will be instantiated on which the object call will be passed
+     *
+     * @param string $name the method's name
+     * @param mixed[] $arguments arguments to be passed to the call
+     * @return mixed
+     */
+    public static function __callStatic($name, $arguments)
+    {
+        $cls = \get_called_class();
+        $header = "HTTP/1.1 102 Processing\r\n\r\n";
+        return \call_user_func_array(array(new $cls($header), "_$name"), $arguments);
     }
 
     /**
@@ -150,6 +179,19 @@ class apiResult extends rest\apiResult
     }
 
     /**
+     * generate a result data set for an object
+     * @param object|array $obj the object
+     * @return \static the result object
+     */
+    protected function result($obj)
+    {
+        $header = "HTTP/1.1 206 Partial Content\r\n\r\n";
+        $data = $this->encode($obj);
+        $cls = \get_class($this);
+        return new $cls($header . $data, $this->encoding, $this->request);
+    }
+
+    /**
      * Pick exactly one item by callback
      * @param callable $cb the selection-callback it accepts at least three arguments:<ol>
      * <li>apiResult $item; the current item @see apiResult</li>
@@ -207,6 +249,7 @@ class apiResult extends rest\apiResult
         }
         return $this->result($res);
     }
+
     /**
      * create a new object containing only the fields referenced
      * <p>this method does not require the extracted properties to exist, which might result in an empty result</p>
@@ -301,28 +344,6 @@ class apiResult extends rest\apiResult
     }
 
     /**
-     * merge a list of data sets together
-     *
-     * if a later object has the same property as an earlier one there will be only the value of the first.
-     * @param object|array|\Traversable $object,... the data object to merge
-     * @return \static the merged object
-     */
-    protected function _merge($object = null)
-    {
-        $res = $this() ? clone $this() : (object)null;
-        foreach (\func_get_args() as $obj) {
-            foreach ($obj instanceof self ? $obj() : $obj as $k => $v) {
-                if (!isset ($res->$k)) {
-                    $res->$k = $v;
-                } elseif (\is_array($v) || \is_object($v)) {
-                    $res->$k = static::merge($res->$k, $v)->content;
-                }
-            }
-        }
-        return $this->result($res);
-    }
-
-    /**
      * read a link property's href
      * @param string $name
      * @param string|bool $get directly get link data using get or provide method to perform (post|put|delete|get)
@@ -372,39 +393,32 @@ class apiResult extends rest\apiResult
             return false;
         }
     }
+
+    function requestApiInstance($url,$method='GET',$data=null) {
+        return call_user_func_array($this->request->apiInstance,func_get_args());
+    }
+
+    function requestPath() {
+        return array_shift($this->splitRequestUrl());
+    }
+
     protected function splitRequestUrl() {
         $split=explode('?',$this->requestUrl(),2);
         if(count($split)<2) $split[]='';
         return $split;
     }
-    function requestQueryVariables() {
-        parse_str(array_pop($this->splitRequestUrl()),$res);
-        return $res;
-    }
-    function buildQueryString($arr){
-        return http_build_query(call_user_func_array(@array_merge,func_get_args()));
-    }
-    function requestPath() {
-        return array_shift($this->splitRequestUrl());
-    }
+
     function requestUrl() {
         return $this->request->url;
     }
-    function requestApiInstance($url,$method='GET',$data=null) {
-        return call_user_func_array($this->request->apiInstance,func_get_args());
+
+    function buildQueryString($arr){
+        return http_build_query(call_user_func_array(@array_merge,func_get_args()));
     }
-    /**
-     * get current object's url-property (@url) or transact with it
-     * @param string $method GET|POST|PUT|DELETE
-     * @param mixed $data payload or query-string, may repeat...
-     * @return string|self
-     */
-    function url($method=null,$data=null) {
-        if (!func_num_args()) {
-            return $this('@url');
-        } else {
-            return call_user_func_array($this->request->apiInstance,array_merge(array($this('@url')),func_get_args()));
-        }
+
+    function requestQueryVariables() {
+        parse_str(array_pop($this->splitRequestUrl()),$res);
+        return $res;
     }
 
     /**
@@ -424,6 +438,71 @@ class apiResult extends rest\apiResult
             $args = func_get_args(); array_shift($args);
             return call_user_func_array($this->request->apiInstance,array_merge(array($url.$append),$args));
         }
+    }
+
+    /**
+     * get current object's url-property (@url) or transact with it
+     * @param string $method GET|POST|PUT|DELETE
+     * @param mixed $data payload or query-string, may repeat...
+     * @return string|self
+     */
+    function url($method=null,$data=null) {
+        if (!func_num_args()) {
+            return $this('@url');
+        } else {
+            return call_user_func_array($this->request->apiInstance,array_merge(array($this('@url')),func_get_args()));
+        }
+    }
+
+    /**
+     * Call-Overload for object context to make some methods accessible from static and object context
+     *
+     * the mentioned methods start with a single underscore
+     *
+     * @param string $name the method to call
+     * @param mixed[] $arguments Arguments to pass to the call
+     * @return mixed
+     * @throws Exception if method does not exist
+     */
+    public function __call($name, $arguments)
+    {
+        if (\method_exists($this, $n = "_$name")) {
+            return \call_user_func_array(array($this, $n), $arguments);
+        }
+	    if(preg_match("/^seek([a-z]+)/i",$name,$match)) {
+		    return call_user_func_array(array($this,@seek),array_merge(array($match[1]),$arguments));
+	    }
+	    if(preg_match("/^get([a-z]+)/i",$name,$match)) {
+		    return call_user_func_array(array($this,@getInstanceByUri),array_merge(array('\\mlu\\groupwise\\wadl\\'.lcfirst($match[1])),$arguments));
+	    }
+        throw new Exception("Undefined method: $name");
+    }
+
+    /**
+     * export an object into outer context while chaining
+     * @param void &$var the variable which will contain the object
+     * @return \static .. continue chaining
+     */
+    public function export(&$var)
+    {
+        $var = $this;
+        return $this;
+    }
+
+    /**
+     * convert timestamps of application to human readable data
+     * <p>field names of timestamps are assumed to start with "time"
+     * @param string $format date format to be accepted by date-function
+     * @uses function date
+     * @return \static the modified object
+     */
+    public function prettyTimes($format = "Y-m-d h:i:s")
+    {
+        return $this->each(function ($v, $k) use ($format) {
+            if (@time == \substr($k, 0, 4)) {
+                return \date($format, $v / 1000);
+            }
+        });
     }
 
     /**
@@ -469,108 +548,6 @@ class apiResult extends rest\apiResult
     }
 
     /**
-     * generate a result data set for an object
-     * @param object|array $obj the object
-     * @return \static the result object
-     */
-    protected function result($obj)
-    {
-        $header = "HTTP/1.1 206 Partial Content\r\n\r\n";
-        $data = $this->encode($obj);
-        $cls = \get_class($this);
-        return new $cls($header . $data, $this->encoding, $this->request);
-    }
-
-    /**
-     * encode a structure or object, my be called statically
-     * @param mixed $object The object to encode, encodes the object itself if omitted
-     * @return string encoded data
-     *
-     */
-    protected function _encode($object = null)
-    {
-        $fn = $this->encoding . @_encode;
-        return $fn(\func_num_args() ? \func_get_arg(0) : $this());
-    }
-
-    /**
-     * transform a string into a structure
-     * @param string $str the text to decode
-     * @return mixed
-     */
-    protected function _decode($str = '')
-    {
-        $fn = $this->encoding . @_decode;
-        return $fn(\func_num_args() ? \func_get_arg(0) : $this());
-    }
-
-    /**
-     * Call-Overload for object context to make some methods accessible from static and object context
-     *
-     * the mentioned methods start with a single underscore
-     *
-     * @param string $name the method to call
-     * @param mixed[] $arguments Arguments to pass to the call
-     * @return mixed
-     * @throws Exception if method does not exist
-     */
-    public function __call($name, $arguments)
-    {
-        if (\method_exists($this, $n = "_$name")) {
-            return \call_user_func_array(array($this, $n), $arguments);
-        }
-        if(preg_match("/^seek([a-z]+)/i",$name,$match)) {
-            return call_user_func_array(array($this,@seek),array_merge(array($match[1]),$arguments));
-        }
-        throw new Exception("Undefined method: $name");
-    }
-
-    /**
-     * Call-Overload for static context to make some methods accessible from static and object context
-     * factory
-     *
-     * the mentioned methods start with a single underscore
-     * by calling a method from static context a default object will be instantiated on which the object call will be passed
-     *
-     * @param string $name the method's name
-     * @param mixed[] $arguments arguments to be passed to the call
-     * @return mixed
-     */
-    public static function __callStatic($name, $arguments)
-    {
-        $cls = \get_called_class();
-        $header = "HTTP/1.1 102 Processing\r\n\r\n";
-        return \call_user_func_array(array(new $cls($header), "_$name"), $arguments);
-    }
-
-    /**
-     * export an object into outer context while chaining
-     * @param void &$var the variable which will contain the object
-     * @return \static .. continue chaining
-     */
-    public function export(&$var)
-    {
-        $var = $this;
-        return $this;
-    }
-
-    /**
-     * convert timestamps of application to human readable data
-     * <p>field names of timestamps are assumed to start with "time"
-     * @param string $format date format to be accepted by date-function
-     * @uses function date
-     * @return \static the modified object
-     */
-    public function prettyTimes($format = "Y-m-d h:i:s")
-    {
-        return $this->each(function ($v, $k) use ($format) {
-            if (@time == \substr($k, 0, 4)) {
-                return \date($format, $v / 1000);
-            }
-        });
-    }
-
-    /**
      * split an attribute by dots into into named parts
      * @param $attr     string attribute name to split
      * @param $name     string name of the first chunk
@@ -598,4 +575,80 @@ class apiResult extends rest\apiResult
     public function seek($type,$qryStr='') {
         return call_user_func_array($type,array($qryStr,$this(@id)));
     }
+
+	/**
+	 * returns the wadl-proxy instance of $className to interact with
+	 *
+	 * @param $className
+	 *
+	 * @return rest\wadlProxy|$className
+	 * @throws Exception if Path lengths mismatch.
+	 */
+    function getInstanceByUri($className,$force=false){
+	    /** @var rest\wadlProxy $instance */
+	    $instance=new $className();
+	    // read out url of object an strip prefix
+		$url = preg_replace('/^\/?gwadmin-service\//','',$this->url());
+	    $uri=explode('/',$url);
+		// get url to compare from api
+	    $objectUri = explode('/',$instance->getMethodInfo('object')->path);
+	    // check for equal count on both comparators
+	    if(!$force && 0!=count($uri)-count($objectUri)) throw new Exception("Paths mismatch");
+	    // read out properties
+	    array_map(function($real,$template)use($instance){
+		    if(!preg_match('/(.*)\{(.*)\}(.*)/',$template,$matches)) return false;
+		    list(,$prefix,$name,$suffix)=$matches;
+		    if (preg_match("/$prefix(.*)$suffix/",$real,$matches)) {
+			    list( , $value ) = $matches;
+			    $instance->$name = $value;
+		    }
+	    },$uri,$objectUri);
+		return $instance;
+    }
+
+    /**
+     * merge a list of data sets together
+     *
+     * if a later object has the same property as an earlier one there will be only the value of the first.
+     * @param object|array|\Traversable $object,... the data object to merge
+     * @return \static the merged object
+     */
+    protected function _merge($object = null)
+    {
+        $res = $this() ? clone $this() : (object)null;
+        foreach (\func_get_args() as $obj) {
+            foreach ($obj instanceof self ? $obj() : $obj as $k => $v) {
+                if (!isset ($res->$k)) {
+                    $res->$k = $v;
+                } elseif (\is_array($v) || \is_object($v)) {
+                    $res->$k = static::merge($res->$k, $v)->content;
+                }
+            }
+        }
+        return $this->result($res);
+    }
+
+    /**
+     * encode a structure or object, my be called statically
+     * @param mixed $object The object to encode, encodes the object itself if omitted
+     * @return string encoded data
+     *
+     */
+    protected function _encode($object = null)
+    {
+        $fn = $this->encoding . @_encode;
+        return $fn(\func_num_args() ? \func_get_arg(0) : $this());
+    }
+
+    /**
+     * transform a string into a structure
+     * @param string $str the text to decode
+     * @return mixed
+     */
+    protected function _decode($str = '')
+    {
+        $fn = $this->encoding . @_decode;
+        return $fn(\func_num_args() ? \func_get_arg(0) : $this());
+    }
 }
+
