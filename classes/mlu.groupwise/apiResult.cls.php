@@ -2,9 +2,11 @@
 
 namespace mlu\groupwise;
 
+use mlu\groupwise\wadl\domain;
 use mlu\groupwise\wadl\group;
 use mlu\groupwise\wadl\mta;
 use mlu\groupwise\wadl\poa;
+use mlu\groupwise\wadl\postoffice;
 use mlu\groupwise\wadl\resource;
 use mlu\groupwise\wadl\user;
 use mlu\groupwise\xsd\listResult;
@@ -28,6 +30,7 @@ use \mlu\rest, \mlu\common, \mlu\value, \Exception;
  * @method poa getPoa ($force=false)
  * @method mta getMta ($force=false)
  * @method group getGroup ($force=false)
+ * @method postoffice getPostoffice ($force=false)
  */
 class apiResult extends rest\apiResult
 {
