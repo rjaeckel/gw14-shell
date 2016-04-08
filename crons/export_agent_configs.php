@@ -30,9 +30,10 @@ $agents=apiResult::merge(array(
 		/** @var $obj apiResult */
 		// create the filename -> {AGENTTYPE}.{AGENTNAME}.cfg
 		$fName=implode('.',array(
-			$type,
+			#$type,
 			// Agent name is defined by the container.
 			$obj($match.'Name'), // $obj->{$match.'Name'}
+			$type,
 			'cfg'
 		));
 		// get raw contents
