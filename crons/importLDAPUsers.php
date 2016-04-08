@@ -11,6 +11,7 @@
  *
  *  options:
  *  -in=OBJECT-ID restrict actions to domain/po/user...
+ *  -bcc=admmailaddress
  * if no flags are given all will be set
  */
 
@@ -389,12 +390,15 @@ EMAIL;
                                 $subject="Neue E-Mail-Adresse";
                                 $to = $ldapMail;
                                 $to .= ', ' . $preferredEmailId . '@' . $internetDomain;
-                                mail($to,$subject,$mail,implode("\r\n",array(
+				$mailHeaders = array(
                                     "From: ".common::def('__mailFrom'),
                                     "X-Mailer: gw-admin-shell PHP/".phpversion(),
-                                    "Content-Type: text/plain; Charset=utf-8",
-                                    #"Bcc: support@example.org",
-                                )))||common::logWrite("Could not send nickname notification to <$to>",STDERR,"\n");
+                                    "Content-Type: text/plain; Charset=utf-8");
+				if (isset(cfg::$options['bcc'])) {
+				    array_push($mailHeaders, "Bcc: " . cfg::$options['bcc']);
+				}
+                                $success = mail($to,$subject,$mail,implode("\r\n",$mailHeaders));
+                                $success || common::logWrite("Could not send nickname notification to <$to>",STDERR,"\n");
                             })->work(false);
                         }
                     }
