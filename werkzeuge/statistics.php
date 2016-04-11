@@ -29,9 +29,12 @@ Internetdomains("attrs=description")->each(function($iDom){
 			// iterate all result pages (users with iDomain in PO)
 			do {
 				// check we have an non-empty result
-				#try { $users('object'); } catch (E $e) { break; }
+				try { $users('object'); } catch (E $e) { break; }
 				#try { $users->item(); } catch (E $e) { break; }
-				if(!(isset($users->resultInfo->nextId)||$users->resultInfo->outOf>0))break;
+				
+				# following is not an option as the resultInfo object might be omitted on large result sets
+				#if(!(isset($users->resultInfo->nextId)||$users->resultInfo->outOf>0))break;
+				
 				// walk each user and accumulate size and count
 				$users->each( function ( $u ) use ( &$count, &$size ) {
 					$size += $u( @mailboxSizeMb, 0 ); $count += 1;
@@ -39,6 +42,6 @@ Internetdomains("attrs=description")->each(function($iDom){
 			} while ($users=$users->nextListPage());
 			// print results
 			printf("%s\t%s\t%d\t%dMB\n",$iDomain,$poName,$count,$size);
-		} catch (E $e) {}
+		} catch (E $e) { fwrite(STDERR,$e->getMessage()."\n"); fwrite (STDERR, print_r($users,1)."\n"); }
 	},$POs);
 });
