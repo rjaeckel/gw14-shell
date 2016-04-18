@@ -318,7 +318,7 @@ if(cfg::$move||cfg::$update) {
                         $comp(1) &&
                         isset($user->internetDomainName) && $comp(2) &&
                         $user->internetDomainName->value == $internetDomain && $comp(4) &&
-                        $user->preferredEmailId == $prefMailId && $comp(8) &&
+                        $user(@preferredEmailId,'') == $prefMailId && $comp(8) &&
                         $user->visibility!=@SYSTEM && $comp(16) &&
                         $user(@surname,'') == $ldapRes(@surname,'') && $comp(32) &&
                         $user(@givenName,'') == $ldapRes(@givenName,'') && $comp(64) &&
@@ -338,8 +338,8 @@ if(cfg::$move||cfg::$update) {
                         // check the user was or will not be disabled
                         $deletedState = (0===stripos($prefMailId,'geloescht_'))||
                                         (0===stripos($prefMailId,'gesperrt_'))||
-                                        (0===stripos($user->preferredEmailId,'geloescht_'))||
-                                        (0===stripos($user->preferredEmailId,'gesperrt_'));
+                                        (0===stripos($user(@preferredEmailId,''),'geloescht_'))||
+                                        (0===stripos($user(@preferredEmailId,''),'gesperrt_'));
 
                         if(!$deletedState && (0==($comp()&4)||0==($comp()&8))) {
                         //email-address changed, create nickname
