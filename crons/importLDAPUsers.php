@@ -388,8 +388,10 @@ Ihr E-Mail-Team des ITZ
 
 EMAIL;
                                 $subject="Neue E-Mail-Adresse";
-                                $to = $ldapMail;
-                                $to .= ', ' . $preferredEmailId . '@' . $internetDomain;
+				$oldMail = $preferredEmailId . '@' . $internetDomain;
+				$newMail = $ldapMail;
+                                $to = $oldMail; // funktioniert in jedem Fall noch
+                                //$to .= ', ' . $newMail; // funktioniert noch nicht
 				$mailHeaders = array(
                                     "From: ".common::def('__mailFrom'),
                                     "X-Mailer: gw-admin-shell PHP/".phpversion(),
