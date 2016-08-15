@@ -396,8 +396,10 @@ EMAIL;
                                     "Content-Type: text/plain; Charset=utf-8");
 				if (isset(cfg::$options['bcc'])) {
 				    array_push($mailHeaders, "Bcc: " . cfg::$options['bcc']);
+                                    $success = mail($to,$subject,$mail,implode("\r\n",$mailHeaders), "-f ".cfg::$options['bcc']);
+				} else {
+                                    $success = mail($to,$subject,$mail,implode("\r\n",$mailHeaders));
 				}
-                                $success = mail($to,$subject,$mail,implode("\r\n",$mailHeaders));
                                 $success || common::logWrite("Could not send nickname notification to <$to>",STDERR,"\n");
                             })->work(false);
                         }
