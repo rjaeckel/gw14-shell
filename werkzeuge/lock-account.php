@@ -183,7 +183,8 @@ function unexpireAccount($u, $db, $reason)
 function refreshLatestEntryFromGroupWise($id, $nkz, $u, $db)
 {
   if (is_null($u)) {
-    $fullname = "unknown GroupWise user";
+    $fullname = "UNKNOWN";
+    $expirationDate = "UNKNOWN";
     $forceInactive = 2; // im GroupWise gelöscht
     // fwrite(STDERR, sprintf("Search for user <%s> did not succeed: found %d" . PHP_EOL, $nkz, $foundCount));
     printf("[$nkz ($id), inactive=$forceInactive] $fullname (expiration = $expirationDate)" . PHP_EOL);
