@@ -189,11 +189,18 @@ function refreshLatestEntryFromGroupWise($id, $nkz, $u, $db, $count)
     $forceInactive = 2; // Mailbox gelöscht -> für Anzeige im Adminportal!
     // fwrite(STDERR, sprintf("Search for user <%s> did not succeed: found %d" . PHP_EOL, $nkz, $foundCount));
     $mailboxStatus = "   mailbox deleted   ";
+    $mailboxSize = "none";
   } else {
     /* @var $u iUser|apiResult */
     $lastname = $u('surname', '');
     $firstname = $u('givenName', ''); // funktionale Accounts haben keinen Vornamen
     $fullname = trim("$firstname $lastname");
+    $mailboxSizeMb = $u('$mailboxSizeMb', null); // scheinbar nicht immer vorhanden?
+    if (is_null($mailboxSizeMb)) {
+      $mailboxSize = "undef";
+    } else {
+      $mailboxSize = sprintf("%4i MB", $mailboxSizeMb);
+    }
     $maybeExpirationDate = $u('expirationDate', null);
     if ($maybeExpirationDate) {
       $expirationDateTime = date("Y-m-d H:i:s", round($maybeExpirationDate / 1000));
@@ -213,7 +220,7 @@ function refreshLatestEntryFromGroupWise($id, $nkz, $u, $db, $count)
     $mailboxStatus = "$inactiveDisplay exp=$expireDisplay";
   }
 
-  printf("[$nkz: $mailboxStatus] $fullname (id=$id, count=$count)" . PHP_EOL);
+  printf("[$nkz: $mailboxStatus $mailboxSize] $fullname (id=$id, count=$count)" . PHP_EOL);
   $stmt = $db->prepare("UPDATE `account_locking_reasons` SET `force_inactive` = ?, `expiration_date`=? WHERE `nkz`=?");
   $success = $stmt->execute(array( $forceInactive, $expirationDateTime, $nkz ));
   #var_dump($success);
