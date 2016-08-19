@@ -159,6 +159,7 @@ function unexpireAccount($u, $db, $reason)
 
   // echo $u->url().PHP_EOL;
 
+  $hasEntry = hasLockingReason($db, $nkz);
   $expired = $u('expirationDate', null);
   if ($expired) {
     // speichern
@@ -168,6 +169,9 @@ function unexpireAccount($u, $db, $reason)
     $stmt = $db->prepare("INSERT INTO account_locking_reasons (nkz, reason, operation, inserted_by) values (?, ?, ?, ?)");
     $stmt->execute(array( $u->name, $reason, 'unlocked', 'gwadmin' ));
     //mlu\groupwise\wadl\obj::setVars(array('id'=>$id))->object()->url('PUT',$update);
+  } elseif (!$hasEntry) {
+    $stmt = $db->prepare("INSERT INTO account_locking_reasons (nkz, reason, operation, inserted_by) values (?, ?, ?, ?)");
+    $stmt->execute(array( $u->name, $reason, 'unlocked', 'gwadmin' ));
   } else {
     printf("Account was not expired at all" . PHP_EOL);
   }
@@ -224,6 +228,24 @@ function refreshLatestEntryFromGroupWise($id, $nkz, $u, $db, $count)
   $stmt = $db->prepare("UPDATE `account_locking_reasons` SET `force_inactive` = ?, `expiration_date`=? WHERE `nkz`=?");
   $success = $stmt->execute(array( $forceInactive, $expirationDateTime, $nkz ));
   #var_dump($success);
+}
+
+/**
+ * Zeigt an, ob zum gegebenen Nutzerkennzeichen ein (Ent)sperreintrag existiert.
+ * @param $db , Datenbankverbindung
+ * @param $nkz , Nutzerkennzeichen
+ * @return bool
+ */
+function hasLockingReason($db, $nkz)
+{
+  $count = 0;
+  $stmt = $db->prepare("SELECT count(*) cnt FROM `account_locking_reasons` WHERE `nkz`=?");
+  $stmt->execute(array( $nkz ));
+  while ($row = $stmt->fetch(PDO::FETCH_OBJ)) {
+    $count = $row->cnt;
+    break;
+  }
+  return ($count > 0);
 }
 
 function refreshLockingStatusFromGroupWise($db)
