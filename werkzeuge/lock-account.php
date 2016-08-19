@@ -61,9 +61,9 @@ function accountExpiredYesterday($u, $db, $reason)
   $expired = $u('expirationDate', null);
 
   $query = $db->prepare("SELECT count(*) cnt FROM account_locking_reasons WHERE nkz = ?");
-  $query->execute(array($nkz));
+  $query->execute(array( $nkz ));
   $count = 0;
-  while($row=$query->fetch(PDO::FETCH_OBJ)) {
+  while ($row = $query->fetch(PDO::FETCH_OBJ)) {
     /*its getting data in line.And its an object*/
     $count = $row->cnt;
     break;
@@ -76,7 +76,7 @@ function accountExpiredYesterday($u, $db, $reason)
 
     //print_r( $u) ;
     $insert_stmt = $db->prepare("INSERT INTO account_locking_reasons (nkz, reason, operation, inserted_by) values (?, ?, ?, ?)");
-    $insert_stmt->execute(array($nkz, $reason, 'locked', 'gwadmin' ));
+    $insert_stmt->execute(array( $nkz, $reason, 'locked', 'gwadmin' ));
     //mlu\groupwise\wadl\obj::setVars(array('id'=>$id))->object()->url('PUT',$update);
   }
 }
@@ -175,59 +175,68 @@ function unexpireAccount($u, $db, $reason)
 
 /**
  * Aktualisiert die GW-Austauschdatenbank bzgl. des Löschstatus.
- * @param $id
- * @param $nkz
+ * @param $id , Eintragsnummer auf der Sperrliste
+ * @param $nkz , fünfstelliges Nutzerkennzeichen
  * @param $u , NULL, wenn Nutzer im Groupwise nicht (mehr) existiert.
- * @param $db
+ * @param $db , DB-Verbindung zu MySQL a6arv_groupwise_addresses
+ * @param $count , Anzahl der (Ent)sperreinträge zum NKZ
  */
-function refreshLatestEntryFromGroupWise($id, $nkz, $u, $db)
+function refreshLatestEntryFromGroupWise($id, $nkz, $u, $db, $count)
 {
   if (is_null($u)) {
-    $fullname = "UNKNOWN";
-    $expirationDate = "UNKNOWN";
-    $forceInactive = 2; // im GroupWise gelöscht
+    $fullname = "UNKNOWN"; // Nutzer wurde im GroupWise gelöscht, umbenannt oder existierte noch nie
+    $expirationDateTime = null;
+    $forceInactive = 2; // Mailbox gelöscht -> für Anzeige im Adminportal!
     // fwrite(STDERR, sprintf("Search for user <%s> did not succeed: found %d" . PHP_EOL, $nkz, $foundCount));
-    printf("[$nkz ($id), inactive=$forceInactive] $fullname (expiration = $expirationDate)" . PHP_EOL);
-    $stmt = $db->prepare("UPDATE `account_locking_reasons` SET `force_inactive` = ? WHERE `id`=?");
-    $success = $stmt->execute(array( $forceInactive, $id ));
-    #var_dump($success);
+    $mailboxStatus = "   mailbox deleted   ";
   } else {
     /* @var $u iUser|apiResult */
-    $lastname = $u('surname', '(undefined)');
-    $firstname = $u('givenName', '(undefined)');
-    $fullname = "$firstname $lastname";
+    $lastname = $u('surname', '');
+    $firstname = $u('givenName', ''); // funktionale Accounts haben keinen Vornamen
+    $fullname = trim("$firstname $lastname");
     $maybeExpirationDate = $u('expirationDate', null);
     if ($maybeExpirationDate) {
-      $expirationDate = date("Y-m-d H:i:s", round($maybeExpirationDate / 1000));
+      $expirationDateTime = date("Y-m-d H:i:s", round($maybeExpirationDate / 1000));
+      $expireDisplay = date("Y-m-d", round($maybeExpirationDate / 1000));
     } else {
-      $expirationDate = null;
+      $expirationDateTime = null;
+      $expireDisplay = "....-..-..";
     }
     $forceInactive = $u('forceInactive', null) | 0;
-
-    printf("[$nkz ($id), inactive=$forceInactive] $fullname (expiration = $expirationDate)" . PHP_EOL);
-    $stmt = $db->prepare("UPDATE `account_locking_reasons` SET `force_inactive` = ?, `expiration_date`=? WHERE `id`=?");
-    $success = $stmt->execute(array( $forceInactive, $expirationDate, $id ));
-    #var_dump($success);
+    if ($forceInactive == 0) {
+      $inactiveDisplay = "active";
+    } elseif ($forceInactive == 1) {
+      $inactiveDisplay = "locked";
+    } else {
+      $inactiveDisplay = "unknwn";
+    }
+    $mailboxStatus = "$inactiveDisplay exp=$expireDisplay";
   }
+
+  printf("[$nkz: $mailboxStatus] $fullname (id=$id, count=$count)" . PHP_EOL);
+  $stmt = $db->prepare("UPDATE `account_locking_reasons` SET `force_inactive` = ?, `expiration_date`=? WHERE `nkz`=?");
+  $success = $stmt->execute(array( $forceInactive, $expirationDateTime, $nkz ));
+  #var_dump($success);
 }
 
 function refreshLockingStatusFromGroupWise($db)
 {
   printf("Übernehme Sperr- und Ablaufstatus (forceInactive, expirationDate) aus GroupWise ... \n");
 
-  foreach ($db->query("SELECT nkz, max(id) id FROM account_locking_reasons GROUP BY nkz ORDER BY nkz") as $row) {
+  foreach ($db->query("SELECT nkz, max(id) id, count(*) cnt FROM account_locking_reasons GROUP BY nkz ORDER BY nkz") as $row) {
     //print_r($row);
     $nkz = $row[ 'nkz' ];
     $id = $row[ 'id' ];
+    $count = $row[ 'cnt' ];
     $users = Users("name=$nkz");
     $foundCount = $users->resultInfo->outOf;
 
-    $handleFound = function($u) use ($db, $nkz, $id) {
-      refreshLatestEntryFromGroupWise($id, $nkz, $u, $db);
-		};
+    $handleFound = function($u) use ($db, $nkz, $id, $count) {
+      refreshLatestEntryFromGroupWise($id, $nkz, $u, $db, $count);
+    };
 
-    $handleMissing = function($u) use ($db, $nkz, $id) {
-      refreshLatestEntryFromGroupWise($id, $nkz, null, $db);
+    $handleMissing = function($u) use ($db, $nkz, $id, $count) {
+      refreshLatestEntryFromGroupWise($id, $nkz, null, $db, $count);
     };
     if ($foundCount == 1) {
       $users->each($handleFound);
