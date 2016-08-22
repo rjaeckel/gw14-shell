@@ -250,9 +250,9 @@ function hasLockingReason($db, $nkz)
 
 function refreshLockingStatusFromGroupWise($db)
 {
-  printf("Übernehme Sperr- und Ablaufstatus (forceInactive, expirationDate) aus GroupWise ... \n");
+  printf("Uebernehme Sperr- und Ablaufstatus (forceInactive, expirationDate) aus GroupWise ... \n");
 
-  foreach ($db->query("SELECT nkz, max(id) id, count(*) cnt FROM account_locking_reasons GROUP BY nkz ORDER BY nkz") as $row) {
+  foreach ($db->query("SELECT nkz, max(id) id, count(*) cnt, max(force_inactive) max_force_inactive, min(expiration_date) min_expiration_date FROM account_locking_reasons GROUP BY nkz ORDER BY max_force_inactive desc, min_expiration_date asc, nkz asc") as $row) {
     //print_r($row);
     $nkz = $row[ 'nkz' ];
     $id = $row[ 'id' ];
