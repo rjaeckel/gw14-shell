@@ -146,6 +146,15 @@ function accountExpiresAt($u, $db, $reason, $newExpirationDate, $logOperation, $
   }
 }
 
+function watchAccount($nkz, $db, $reason)
+{
+  $hasEntry = hasLockingReason($db, $nkz);
+  if (!$hasEntry) {
+    $stmt = $db->prepare("INSERT INTO account_locking_reasons (nkz, reason, operation, inserted_by) values (?, ?, ?, ?)");
+    $stmt->execute(array( $nkz, $reason, 'watch', 'gwadmin' ));
+  } 
+}
+
 
 function unexpireAccount($u, $db, $reason)
 {
@@ -297,6 +306,7 @@ these OPs will lock the account due to an expirationDate in the past
   expires_this_month - 'Anfang des kommenden Monats'
   expires_next_month - 'Ende des kommenden Monats'
   exmat_last_spring  - exmat. on 31.03. previous year -> expires end of september previous year
+  watch              - gleicht den Account beim nächsten 'refresh' mit GroupWise ab
 
 these OPs will set an expirationDate in the future
   expires_next_month - 'end of next month'
@@ -385,6 +395,12 @@ USAGE
   } elseif ($op == 'exmat_last_autumn ') {
   } elseif ($op == 'exmat_this_spring') {
   } elseif ($op == 'exmat_this_autumn ') {
+  } elseif ($op == 'watch') {
+    foreach ($argv as $i => $nkz) {
+      watchAccount($nkz, $db, $reason);
+      print "nkz = $nkz" . PHP_EOL;
+    }
+    exit(0);
   } elseif ($op == 'unexpire') {
 
     $f = function($u) use ($db, $reason) {
