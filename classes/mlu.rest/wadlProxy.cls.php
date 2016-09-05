@@ -128,10 +128,13 @@ abstract class wadlProxy {
                 $data[]=$arg;
             }
         }
-        
+       
+        // append query parameter (after ? and concatenated with & ampersand)
         if(!empty($qs)) {
             $url.='?'.\implode('&',$qs);
         }
+        echo "DLM: url=$url" . PHP_EOL ;
+        echo "DLM: data=$data" . PHP_EOL ;
         return \call_user_func_array(static::$restFunction,$data);
     }
     /**

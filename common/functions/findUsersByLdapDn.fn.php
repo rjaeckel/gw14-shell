@@ -13,17 +13,18 @@ use mlu\groupwise\wadl\directory,Exception,mlu\common;
  * @return iUser|iGroup|apiResult
  * @throws Exception if no entry was found
  */
-function searchLDAP ($searchKey) {
+function findUsersByLdapDn ($directoryId, $ldapDn) {
 	$loop=0;
 	do {
 		/** @var apiResult|iListResult|iUser[] $sr */
 		// directory search could fail as there are quite a lot connections...
 		try {
 			$loop++;
-			$sr = Directory::search( null, 'filter=(' . $searchKey . ')' );
+			//$sr = Directory::search( null, 'filter=(' . $searchKey . ')' );
+			$sr = Users("directoryId=${directoryId}&ldapDn=${ldapDn}");
 		} catch (Exception $e) {
 			$sr=false;
-			common::logWrite("LDAP Search 1 for searchKey='$searchKey' #$loop failed: ". $e->getMessage(),STDERR,"\n");
+			common::logWrite("LDAP Users for ldapDn='$ldapDn' #$loop failed: ". $e->getMessage(),STDERR,"\n");
 		}
 	} while (!$sr || substr($sr->header('http/1.1'), 0, 1) != '2');
 	// read out email-address data
@@ -33,4 +34,3 @@ function searchLDAP ($searchKey) {
 	}
 	return $sr->item();
 }
-

@@ -164,6 +164,7 @@ function importUsers($tempPOId) {
         /** @var $importJob \mlu\groupwise\xsd\syncResult|apiResult */
         $importJob(@total);
     } catch (E $e) {
+	common::logWrite("LDAP Import importConfig='$importConfig'". $e->getMessage(),STDERR,"\n");
         /** @var \mlu\groupwise\xsd\asyncStatus|apiResult $importJob*/
         while(!$importJob(@done,false)) {
             common::logWrite("Waiting for import-job to finish...");
@@ -296,15 +297,19 @@ if(cfg::$move||cfg::$update) {
             common::logWrite(sprintf("Working page %d/%d (%s)...",$page,++$current,$user->id));
             $reference = $user->split(@id, '', @domain, @postoffice, @user);
             // ldap-search
-            $searchKey = array_shift(explode(',', $user->ldapDn));
+            $user_ldapDn = $user->ldapDn;
+            common::logWrite("LDAP Search ldapDn='$user_ldapDn'",STDERR,"\n");
+            $searchKey = array_shift(explode(',', $user_ldapDn));
+	    #$searchKey = $user_ldapDn;
             try {
-                $ldapRes = common::searchLDAP($searchKey);
-                $ldapMail = strtolower($ldapRes->emailAddresses[0]);
+                #$ldapRes = common::searchLDAP($searchKey);
+                $ldapRes = common::findUsersByLdapDn("gwldap", $user_ldapDn);
+                $ldapMail = strtolower($ldapRes->preferredEmailAddress);
                 $mailParts = explode('@', $ldapMail);
                 $prefMailId = array_shift($mailParts);
                 $internetDomain = array_shift($mailParts);
             } catch (Exception $e) {
-                common::logWrite("LDAP Search failed for User <{$user->id}> (s: $searchKey): {$e->getMessage()}",STDERR,"\n");
+                common::logWrite("LDAP Search 2 2 failed for User <{$user->id}> (s: $searchKey): {$e->getMessage()}",STDERR,"\n");
                 common::logWrite(" - - Trace: ".$e->getTraceAsString(),STDERR,"\n");
                 // break each-function here
                 return;
@@ -361,11 +366,8 @@ if(cfg::$move||cfg::$update) {
                                 )->reload();
 
                                 $givenName=$ldapRes(@givenName,'');
-                                $surname=$ldapRes(@surname,'');
-                                $title=$ldapRes(@title,'');
-                                if($title)$title.=' ';
-                                $internetDomain=$user->internetDomainName->value;
-                                $preferredEmailId=$user->preferredEmailId;
+                                $uid=$user->name;
+                                $mail=<<<EMAIL
                                 $uid=$user->name;
                                 $mail=<<<EMAIL
 Sehr geehrte*r $title$givenName $surname,
