@@ -142,6 +142,9 @@ function getPoForInternetDomain($InternetDomain) {
 
 function isPostOfficeForInternetDomain($poName,$internetDomainName) {
     global $InternetDomainPostOffices;
+    if (!in_array($internetDomainName, array_keys($InternetDomainPostOffices))) {
+        return false; // z.B. 'informatik....'
+    }
     $POs = $InternetDomainPostOffices[$internetDomainName];
     return count(array_filter($POs,function($poId)use($poName){
         $compName=array_pop(explode('.',$poId));
