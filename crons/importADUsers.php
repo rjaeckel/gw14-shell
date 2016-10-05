@@ -41,6 +41,8 @@ use mlu\groupwise\apiResult,
 cache::PostOffices( 'count=10000' );
 cache::InternetDomains( 'count=1000' );
 
+define('NOISE', "[NOISE] ");
+
 // parse command line arguments
 class cfg {
     public static $xd_users; // menschliche Nutzer
@@ -63,7 +65,7 @@ class cfg {
             }
         }
         foreach($fields as $f) {
-            if(static::$$f) common::logWrite(" + $f\n");
+            if(static::$$f) common::logWrite(NOISE." + $f".PHP_EOL);
         }
         foreach(static::$options as $k=>$v) {
             common::logWrite(" - $k:$v\n");
@@ -176,10 +178,10 @@ function importUsers($tempPOId) {
         /** @var $importJob \mlu\groupwise\xsd\syncResult|apiResult */
         $importJob(@total);
     } catch (E $e) {
-	common::logWrite("LDAP Import importConfig='$importConfig'". $e->getMessage(),STDERR,"\n");
+	common::logWrite(NOISE."LDAP Import importConfig='$importConfig'". $e->getMessage(),STDERR,"\n");
         /** @var \mlu\groupwise\xsd\asyncStatus|apiResult $importJob*/
         while(!$importJob(@done,false)) {
-            common::logWrite("Waiting for import-job to finish...", STDOUT, PHP_EOL);
+            common::logWrite(NOISE."Waiting for import-job to finish...", STDOUT, PHP_EOL);
             sleep(1);
             $importJob=$importJob->reload();
         }
@@ -198,7 +200,7 @@ function importUsers($tempPOId) {
             }
         });
     } catch(E $e){}
-    common::logWrite("LDAP-Import Done.\n");
+    common::logWrite(NOISE."LDAP-Import Done.".PHP_EOL);
 }
 
 /**
@@ -298,7 +300,7 @@ function getMailFromResult($ldapRes)
 }
 
 if (cfg::$ldap) {
-    common::logWrite("Starting user import from '$directoryId' ...", STDOUT, PHP_EOL);
+    common::logWrite(NOISE."Starting user import from '$directoryId' ...", STDOUT, PHP_EOL);
     importUsers($tempPOId);
 }
 
@@ -307,7 +309,7 @@ if(cfg::$move||cfg::$update) {
     $page_size = 5000;
     $attributes_of_interest = "ldapdn,preferredemailid,internetdomainname,title,givenName,surname,visibility";
     if (cfg::$imported) {
-        common::logWrite("Moving and/or Updating imported $directoryId-users ...",STDOUT,PHP_EOL);
+        common::logWrite(NOISE."Moving and/or Updating imported $directoryId-users ...",STDOUT,PHP_EOL);
     	$filter = "attrs=${attributes_of_interest}&count=${page_size}&directoryId=${directoryId}";
         $usersToUpdate = Users($filter,$tempPOId);
     } elseif (isset(cfg::$options['in'])) {
@@ -324,9 +326,9 @@ if(cfg::$move||cfg::$update) {
         $page++;
 	$current=0;
         $usersToMove = array();
-        common::logWrite(sprintf("Working page %d...",$page), STDOUT, PHP_EOL);
+        common::logWrite(NOISE.sprintf("Working page %d...",$page), STDOUT, PHP_EOL);
         if(isset($usersToUpdate->resultInfo)&&isset($usersToUpdate->resultInfo->outOf)&&$usersToUpdate->resultInfo->outOf==0) {
-            common::logWrite("break", STDOUT, PHP_EOL);
+            common::logWrite(NOISE."break", STDOUT, PHP_EOL);
             break;
 	}	
         $usersToUpdate->each(function ($user) use (&$usersToMove,&$current,$page,$directoryId) {
@@ -476,5 +478,5 @@ EMAIL;
     //echo "\n";
 }
 
-common::logWrite("Done.",STDOUT,"\n");
+common::logWrite(NOISE."Done.",STDOUT,PHP_EOL);
 //fwrite(STDOUT,sprintf("[%s] Done.   \n",date("d.m.Y h:i:s")));
