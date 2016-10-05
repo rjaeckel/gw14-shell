@@ -162,7 +162,7 @@ function importUsers($tempPOId) {
     /* @var $importConfig iDirImport */
     $importConfig=array(
         @postOfficeId=>$tempPOId,
-        @searchSubtree=>true,
+        @searchSubtree=>false, // true,
         @commit=>true,
         @showFailed=>true,
         @showSkipped=>false,
