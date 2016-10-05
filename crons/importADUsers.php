@@ -37,24 +37,21 @@ use mlu\groupwise\apiResult,
     Exception as E
     ;
 
-// configuration
-$directoryId=@xd; // gwLDAP;
-$tempPOId="POST_OFFICE.gwdom0.system";
-$WorkerThreads=100;
-
 // preload POs and IDomains...
 cache::PostOffices( 'count=10000' );
 cache::InternetDomains( 'count=1000' );
 
 // parse command line arguments
 class cfg {
+    public static $xd_users; // menschliche Nutzer
+    public static $xd_funcs; // technische Nutzer
     public static $ldap;
     public static $update;
     public static $move;
     public static $imported;
     public static $options=array();
     static function init($data) {
-        $fields=explode(' ','ldap update move imported');
+        $fields=explode(' ','xd_users xd_funcs ldap update move imported');
         $params=array();
         $flagged=count(array_filter($data,function($param)use(&$params) {
                 return !($param[0]=='-'&&$params[]=$param);
@@ -74,6 +71,15 @@ class cfg {
     }
 }
 cfg::init($argv);
+
+// configuration
+if (cfg::$xd_funcs) {
+    $directoryId = @xd_func; // gwLDAP;
+} else { 
+    $directoryId = @xd; // gwLDAP;
+}
+$tempPOId="POST_OFFICE.gwdom0.system";
+$WorkerThreads=100;
 
 //die();*/
 
@@ -172,7 +178,7 @@ function importUsers($tempPOId) {
 	common::logWrite("LDAP Import importConfig='$importConfig'". $e->getMessage(),STDERR,"\n");
         /** @var \mlu\groupwise\xsd\asyncStatus|apiResult $importJob*/
         while(!$importJob(@done,false)) {
-            common::logWrite("Waiting for import-job to finish...");
+            common::logWrite("Waiting for import-job to finish...", STDOUT, PHP_EOL);
             sleep(1);
             $importJob=$importJob->reload();
         }
@@ -204,7 +210,7 @@ function importUsers($tempPOId) {
 function userUpdateAction($user,$internetDomain,$prefMailId,$more=array()) {
     return function() use($user,$internetDomain,$prefMailId,$more) {
         /** @var $user user|iUser */
-        common::logWrite(sprintf("Updating %s@%s...",$prefMailId,$internetDomain));
+        common::logWrite(sprintf("Updating %s@%s...",$prefMailId,$internetDomain), STDOUT, PHP_EOL);
         $userID=implode('.',array('USER',$user->domain,$user->postoffice,$user->user));
         try {
             try {
@@ -278,18 +284,20 @@ function userMoveAction($targetPO,$users) {
 
 function getMailFromResult($ldapRes)
 {
-   $rawMail = strtolower($ldapRes->postOfficeBox);
-   $mail = $rawMail;
-   common::logWrite("mailraw = $mail");
-   $mail = str_replace("@@", "@student.uni-halle.de", $mail);
-   common::logWrite("mail_@@ = $mail");
-   $mail = preg_replace("/@$/", ".uni-halle.de", $mail);
-   common::logWrite("mail_@ = $mail");
-   return $mail;
+    $rawMail = strtolower($ldapRes->postOfficeBox);
+    $mail = $mail1 = $rawMail;
+    $mail = $mail2 = str_replace("@@", "@student.uni-halle.de", $mail);
+    $mail = $mail3 = preg_replace("/@$/", ".uni-halle.de", $mail);
+    if ($rawMail != $mail) {
+        common::logWrite("mailraw = $mail1" . PHP_EOL);
+        common::logWrite("mail_@@ = $mail2" . PHP_EOL);
+        common::logWrite("mail__@ = $mail3" . PHP_EOL);
+    }
+    return $mail;
 }
 
 if (cfg::$ldap) {
-    common::logWrite("Started user import...",STDOUT,PHP_EOL);
+    common::logWrite("Starting user import from '$directoryId' ...", STDOUT, PHP_EOL);
     importUsers($tempPOId);
 }
 
@@ -322,11 +330,11 @@ if(cfg::$move||cfg::$update) {
 	}	
         $usersToUpdate->each(function ($user) use (&$usersToMove,&$current,$page,$directoryId) {
             /* @var $user iUser|apiResult */
-            common::logWrite(sprintf("Working page %d/%d (%s)...",$page,++$current,$user->id));
+            common::logWrite(sprintf("Processing entry %d (%s) of page %d ...", ++$current, $user->id, $page), STDOUT, PHP_EOL);
             $reference = $user->split(@id, '', @domain, @postoffice, @user);
             // ldap-search
             $user_ldapDn = $user->ldapDn;
-            common::logWrite("LDAP Search ldapDn='$user_ldapDn'",STDERR,"\n");
+            common::logWrite("LDAP Search ldapDn='$user_ldapDn'", STDERR, PHP_EOL);
             $searchKey = array_shift(explode(',', $user_ldapDn));
 	    #$searchKey = $user_ldapDn;
             try {
