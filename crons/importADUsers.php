@@ -178,7 +178,7 @@ function importUsers($tempPOId) {
         /** @var $importJob \mlu\groupwise\xsd\syncResult|apiResult */
         $importJob(@total);
     } catch (E $e) {
-	common::logWrite(NOISE."LDAP Import importConfig='$importConfig'". $e->getMessage(),STDERR,"\n");
+	common::logWrite(NOISE."LDAP Import importConfig='$importConfig'". $e->getMessage(), STDOUT, PHP_EOL); // war STDERR
         /** @var \mlu\groupwise\xsd\asyncStatus|apiResult $importJob*/
         while(!$importJob(@done,false)) {
             common::logWrite(NOISE."Waiting for import-job to finish...", STDOUT, PHP_EOL);
