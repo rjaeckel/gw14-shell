@@ -213,7 +213,8 @@ function importUsers($tempPOId) {
 function userUpdateAction($user,$internetDomain,$prefMailId,$more=array()) {
     return function() use($user,$internetDomain,$prefMailId,$more) {
         /** @var $user user|iUser */
-        common::logWrite(sprintf("Updating %s@%s...",$prefMailId,$internetDomain), STDOUT, PHP_EOL);
+        $nkz = $user->user;
+        common::logWrite(sprintf("Updating %s (%s@%s) ...", $nkz, $prefMailId, $internetDomain), STDOUT, PHP_EOL);
         $userID=implode('.',array('USER',$user->domain,$user->postoffice,$user->user));
         try {
             try {
@@ -334,12 +335,12 @@ if(cfg::$move||cfg::$update) {
 	}	
         $usersToUpdate->each(function ($user) use (&$usersToMove,&$current,$page,$directoryId) {
             /* @var $user iUser|apiResult */
-            common::logWrite(sprintf("Processing entry %d (%s) of page %d ...", ++$current, $user->id, $page), STDOUT, PHP_EOL);
+            $user_ldapDn = $user->ldapDn;
+            $searchKey = $nkz = array_shift(explode(',', $user_ldapDn));
+            $indent = PHP_EOL."                                    ";
+            common::logWrite(sprintf("Processing %s entry %d of page %d (%s, %s, %s) ...", $nkz, ++$current, $page, $user->id, $directoryId, $user_ldapDn), STDOUT, PHP_EOL);
             $reference = $user->split(@id, '', @domain, @postoffice, @user);
             // ldap-search
-            $user_ldapDn = $user->ldapDn;
-            common::logWrite("LDAP Search ldapDn='$user_ldapDn'", STDERR, PHP_EOL);
-            $searchKey = array_shift(explode(',', $user_ldapDn));
 	    #$searchKey = $user_ldapDn;
             try {
                 $ldapRes = common::searchLDAP($searchKey);
