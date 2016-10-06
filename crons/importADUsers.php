@@ -264,11 +264,12 @@ function userUpdateAction($user,$internetDomain,$prefMailId,$more=array()) {
  * @return callable
  */
 function userMoveAction($targetPO,$users) {
-    return function() use($targetPO,$users) {
-        common::logWrite(sprintf("Moving %d users to PO %s: %s",
+    $indent = PHP_EOL."                                    ";
+    return function() use($targetPO,$users,$indent) {
+        common::logWrite(sprintf("Moving %d users to PO %s:".$indent."%s",
             count($users),
             $targetPO,
-            implode(' ',array_map(function($u){return $u->id;},$users))
+            implode($indent, array_map(function($u){return $u->id;},$users))
         ),STDERR,"\n");
         /** @var $move iMoveRequest */
         /** @var $users iMoveSource[] */
