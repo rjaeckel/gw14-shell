@@ -5,6 +5,8 @@
  * run ldap-userimport into local postoffices
  * flags:
  *  ldap        search ldap for new users
+ *  xd_users    use directoryId 'xd' for Human Accounts
+ *  xd_funcs    use directoryId 'xd_func' for Technical Accounts
  *  update      update user-properties to match ldap e.g. email-address and names
  *  move        move users into matching PostOffice by InternetDomain
  *  imported    limit synchronization to the temporary PostOffice
