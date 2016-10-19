@@ -347,7 +347,6 @@ if(cfg::$move||cfg::$update) {
             try {
                 $ldapRes = common::searchLDAP($searchKey);
 		#print_r($ldapRes());
-                #$ldapRes = common::findUsersByLdapDn($directoryId, $user_ldapDn);
                 $ldapMail = getMailFromResult($ldapRes); // strtolower($ldapRes->postOfficeBox);
                 $mailParts = explode('@', $ldapMail);
                 $prefMailId = array_shift($mailParts);
