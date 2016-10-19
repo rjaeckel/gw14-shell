@@ -45,7 +45,7 @@ $WorkerThreads=100;
 cache::PostOffices( 'count=10000' );
 cache::InternetDomains( 'count=1000' );
 
-
+// parse command line arguments
 class cfg {
     public static $ldap;
     public static $update;
@@ -271,27 +271,38 @@ function userMoveAction($targetPO,$users) {
     };
 }
 
-common::logWrite("Started user import...",STDOUT,PHP_EOL);
-
-cfg::$ldap&&importUsers($tempPOId);
+if (cfg::$ldap) {
+    common::logWrite("Started user import...",STDOUT,PHP_EOL);
+    importUsers($tempPOId);
+}
 
 if(cfg::$move||cfg::$update) {
     // generate update-list
-    $filter = 'attrs=ldapdn,preferredemailid,internetdomainname,title,givenName,surname,visibility&count=5000&directoryId=' . $directoryId;
-    $usersToUpdate = cfg::$imported?
-        users($filter,$tempPOId):
-        (isset(cfg::$options['in'])?
-            users($filter,cfg::$options['in']):
-            users($filter)
-        );
+    $page_size = 5000;
+    $attributes_of_interest = "ldapdn,preferredemailid,internetdomainname,title,givenName,surname,visibility";
+    if (cfg::$imported) {
+        common::logWrite("Moving and/or Updating imported $directoryId-users ...",STDOUT,PHP_EOL);
+    	$filter = "attrs=${attributes_of_interest}&count=${page_size}&directoryId=${directoryId}";
+        $usersToUpdate = Users($filter,$tempPOId);
+    } elseif (isset(cfg::$options['in'])) {
+        common::logWrite("Moving and/or Updating specified $directoryId-users ...",STDOUT,PHP_EOL);
+    	$filter = "attrs=${attributes_of_interest}&count=${page_size}&directoryId=${directoryId}";
+	$usersToUpdate = Users($filter,cfg::$options['in']);
+    } else {
+        common::logWrite("Moving and/or Updating all $directoryId-users ...",STDOUT,PHP_EOL);
+    	$filter = "attrs=${attributes_of_interest}&count=${page_size}&directoryId=${directoryId}";
+	$usersToUpdate = Users($filter);
+    }
     $page = 0;
     do {
         $page++;
-	    $current=0;
+	$current=0;
         $usersToMove = array();
-        # common::logWrite(sprintf("Working page %d...",$page));
-        if(isset($usersToUpdate->resultInfo)&&isset($usersToUpdate->resultInfo->outOf)&&$usersToUpdate->resultInfo->outOf==0)
+        common::logWrite(sprintf("Working page %d...",$page), STDOUT, PHP_EOL);
+        if(isset($usersToUpdate->resultInfo)&&isset($usersToUpdate->resultInfo->outOf)&&$usersToUpdate->resultInfo->outOf==0) {
+            common::logWrite("break", STDOUT, PHP_EOL);
             break;
+	}	
         $usersToUpdate->each(function ($user) use (&$usersToMove,&$current,$page) {
             /* @var $user iUser|apiResult */
             common::logWrite(sprintf("Working page %d/%d (%s)...",$page,++$current,$user->id));
@@ -309,7 +320,7 @@ if(cfg::$move||cfg::$update) {
                 $prefMailId = array_shift($mailParts);
                 $internetDomain = array_shift($mailParts);
             } catch (Exception $e) {
-                common::logWrite("LDAP Search 2 2 failed for User <{$user->id}> (s: $searchKey): {$e->getMessage()}",STDERR,"\n");
+                common::logWrite("LDAP Search 2 failed for User <{$user->id}> (s: $searchKey): {$e->getMessage()}",STDERR,"\n");
                 common::logWrite(" - - Trace: ".$e->getTraceAsString(),STDERR,"\n");
                 // break each-function here
                 return;
@@ -367,8 +378,8 @@ if(cfg::$move||cfg::$update) {
 
                                 $givenName=$ldapRes(@givenName,'');
                                 $uid=$user->name;
-                                $mail=<<<EMAIL
-                                $uid=$user->name;
+                                #$mail=<<<EMAIL
+                                #$uid=$user->name;
                                 $mail=<<<EMAIL
 Sehr geehrte*r $title$givenName $surname,
 
