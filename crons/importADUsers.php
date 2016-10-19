@@ -5,6 +5,8 @@
  * run ldap-userimport into local postoffices
  * flags:
  *  ldap        search ldap for new users
+ *  xd_users    use directoryId 'xd' for Human Accounts
+ *  xd_funcs    use directoryId 'xd_func' for Technical Accounts
  *  update      update user-properties to match ldap e.g. email-address and names
  *  move        move users into matching PostOffice by InternetDomain
  *  imported    limit synchronization to the temporary PostOffice
@@ -15,6 +17,7 @@
  * if no flags are given all will be set
  */
 
+# FOR DEBUGGING
 #define('__devmode',true);
 #define('__devRequests',true);
 
@@ -36,24 +39,23 @@ use mlu\groupwise\apiResult,
     Exception as E
     ;
 
-// configuration
-$directoryId=@gwLDAP;
-$tempPOId="POST_OFFICE.gwdom0.system";
-$WorkerThreads=100;
-
 // preload POs and IDomains...
 cache::PostOffices( 'count=10000' );
 cache::InternetDomains( 'count=1000' );
 
+define('NOISE', "[NOISE] ");
 
+// parse command line arguments
 class cfg {
+    public static $xd_users; // menschliche Nutzer
+    public static $xd_funcs; // technische Nutzer
     public static $ldap;
     public static $update;
     public static $move;
     public static $imported;
     public static $options=array();
     static function init($data) {
-        $fields=explode(' ','ldap update move imported');
+        $fields=explode(' ','xd_users xd_funcs ldap update move imported');
         $params=array();
         $flagged=count(array_filter($data,function($param)use(&$params) {
                 return !($param[0]=='-'&&$params[]=$param);
@@ -65,7 +67,7 @@ class cfg {
             }
         }
         foreach($fields as $f) {
-            if(static::$$f) common::logWrite(" + $f\n");
+            if(static::$$f) common::logWrite(NOISE." + $f".PHP_EOL);
         }
         foreach(static::$options as $k=>$v) {
             common::logWrite(" - $k:$v\n");
@@ -73,6 +75,15 @@ class cfg {
     }
 }
 cfg::init($argv);
+
+// configuration
+if (cfg::$xd_funcs) {
+    $directoryId = @xd_func; // gwLDAP;
+} else { 
+    $directoryId = @xd; // gwLDAP;
+}
+$tempPOId="POST_OFFICE.gwdom0.system";
+$WorkerThreads=100;
 
 //die();*/
 
@@ -141,6 +152,9 @@ function getPoForInternetDomain($InternetDomain) {
 
 function isPostOfficeForInternetDomain($poName,$internetDomainName) {
     global $InternetDomainPostOffices;
+    if (!in_array($internetDomainName, array_keys($InternetDomainPostOffices))) {
+        return false; // z.B. 'informatik....'
+    }
     $POs = $InternetDomainPostOffices[$internetDomainName];
     return count(array_filter($POs,function($poId)use($poName){
         $compName=array_pop(explode('.',$poId));
@@ -152,11 +166,13 @@ function importUsers($tempPOId) {
     /* @var $importConfig iDirImport */
     $importConfig=array(
         @postOfficeId=>$tempPOId,
-        @searchSubtree=>true,
+        @searchSubtree=>false, // true,
         @commit=>true,
         @showFailed=>true,
         @showSkipped=>false,
-        @showSucceeded=>false
+        @showSucceeded=>false,
+	@filter=>'(&(objectClass=user)(postOfficeBox=*@*)(!(postOfficeBox=*@informatik*))(memberof:1.2.840.113556.1.4.1941:=CN=MLU E-Mail zentral,OU=MLU Global,OU=Uni-Halle,DC=xd,DC=uni-halle,DC=de))'
+	//@filter=>'(&(objectClass=user)(memberof:1.2.840.113556.1.4.1941:=CN=MLU E-Mail zentral,OU=MLU Global,OU=Uni-Halle,DC=xd,DC=uni-halle,DC=de))'
     );
 // find new users in ldap using config above
     $importJob=directory::ldapImport($importConfig);
@@ -164,9 +180,10 @@ function importUsers($tempPOId) {
         /** @var $importJob \mlu\groupwise\xsd\syncResult|apiResult */
         $importJob(@total);
     } catch (E $e) {
+	common::logWrite(NOISE."LDAP Import importConfig='$importConfig'". $e->getMessage(), STDOUT, PHP_EOL); // war STDERR
         /** @var \mlu\groupwise\xsd\asyncStatus|apiResult $importJob*/
         while(!$importJob(@done,false)) {
-            common::logWrite("Waiting for import-job to finish...");
+            common::logWrite(NOISE."Waiting for import-job to finish...", STDOUT, PHP_EOL);
             sleep(1);
             $importJob=$importJob->reload();
         }
@@ -185,7 +202,7 @@ function importUsers($tempPOId) {
             }
         });
     } catch(E $e){}
-    common::logWrite("LDAP-Import Done.\n");
+    common::logWrite(NOISE."LDAP-Import Done.".PHP_EOL);
 }
 
 /**
@@ -198,7 +215,8 @@ function importUsers($tempPOId) {
 function userUpdateAction($user,$internetDomain,$prefMailId,$more=array()) {
     return function() use($user,$internetDomain,$prefMailId,$more) {
         /** @var $user user|iUser */
-        common::logWrite(sprintf("Updating %s@%s...",$prefMailId,$internetDomain));
+        $nkz = $user->user;
+        common::logWrite(sprintf("Updating %s (%s@%s) ...", $nkz, $prefMailId, $internetDomain), STDOUT, PHP_EOL);
         $userID=implode('.',array('USER',$user->domain,$user->postoffice,$user->user));
         try {
             try {
@@ -249,11 +267,12 @@ function userUpdateAction($user,$internetDomain,$prefMailId,$more=array()) {
  * @return callable
  */
 function userMoveAction($targetPO,$users) {
-    return function() use($targetPO,$users) {
-        common::logWrite(sprintf("Moving %d users to PO %s: %s",
+    $indent = PHP_EOL."                                    ";
+    return function() use($targetPO,$users,$indent) {
+        common::logWrite(sprintf("Moving %d users to PO %s:".$indent."%s",
             count($users),
             $targetPO,
-            implode(' ',array_map(function($u){return $u->id;},$users))
+            implode($indent, array_map(function($u){return $u->id;},$users))
         ),STDERR,"\n");
         /** @var $move iMoveRequest */
         /** @var $users iMoveSource[] */
@@ -270,41 +289,70 @@ function userMoveAction($targetPO,$users) {
     };
 }
 
-common::logWrite("Started user import...",STDOUT,PHP_EOL);
+function getMailFromResult($ldapRes)
+{
+    $rawMail = strtolower($ldapRes->postOfficeBox);
+    $mail = $mail1 = $rawMail;
+    $mail = $mail2 = str_replace("@@", "@student.uni-halle.de", $mail);
+    $mail = $mail3 = preg_replace("/@$/", ".uni-halle.de", $mail);
+    if ($rawMail != $mail) {
+        common::logWrite("mailraw = $mail1" . PHP_EOL);
+        common::logWrite("mail_@@ = $mail2" . PHP_EOL);
+        common::logWrite("mail__@ = $mail3" . PHP_EOL);
+    }
+    return $mail;
+}
 
-cfg::$ldap&&importUsers($tempPOId);
+if (cfg::$ldap) {
+    common::logWrite(NOISE."Starting user import from '$directoryId' ...", STDOUT, PHP_EOL);
+    importUsers($tempPOId);
+}
 
 if(cfg::$move||cfg::$update) {
     // generate update-list
-    $filter = 'attrs=ldapdn,preferredemailid,internetdomainname,title,givenName,surname,visibility&count=5000&directoryId=' . $directoryId;
-    $usersToUpdate = cfg::$imported?
-        users($filter,$tempPOId):
-        (isset(cfg::$options['in'])?
-            users($filter,cfg::$options['in']):
-            users($filter)
-        );
+    $page_size = 5000;
+    $attributes_of_interest = "ldapdn,preferredemailid,internetdomainname,title,givenName,surname,visibility";
+    if (cfg::$imported) {
+        common::logWrite(NOISE."Moving and/or Updating imported $directoryId-users ...",STDOUT,PHP_EOL);
+    	$filter = "attrs=${attributes_of_interest}&count=${page_size}&directoryId=${directoryId}";
+        $usersToUpdate = Users($filter,$tempPOId);
+    } elseif (isset(cfg::$options['in'])) {
+        common::logWrite("Moving and/or Updating specified $directoryId-users ...",STDOUT,PHP_EOL);
+    	$filter = "attrs=${attributes_of_interest}&count=${page_size}&directoryId=${directoryId}";
+	$usersToUpdate = Users($filter,cfg::$options['in']);
+    } else {
+        common::logWrite("Moving and/or Updating all $directoryId-users ...",STDOUT,PHP_EOL);
+    	$filter = "attrs=${attributes_of_interest}&count=${page_size}&directoryId=${directoryId}";
+	$usersToUpdate = Users($filter);
+    }
     $page = 0;
     do {
         $page++;
-	    $current=0;
+	$current=0;
         $usersToMove = array();
-        # common::logWrite(sprintf("Working page %d...",$page));
-        if(isset($usersToUpdate->resultInfo)&&isset($usersToUpdate->resultInfo->outOf)&&$usersToUpdate->resultInfo->outOf==0)
+        common::logWrite(NOISE.sprintf("Working page %d...",$page), STDOUT, PHP_EOL);
+        if(isset($usersToUpdate->resultInfo)&&isset($usersToUpdate->resultInfo->outOf)&&$usersToUpdate->resultInfo->outOf==0) {
+            common::logWrite(NOISE."break", STDOUT, PHP_EOL);
             break;
-        $usersToUpdate->each(function ($user) use (&$usersToMove,&$current,$page) {
+	}	
+        $usersToUpdate->each(function ($user) use (&$usersToMove,&$current,$page,$directoryId) {
             /* @var $user iUser|apiResult */
-            common::logWrite(sprintf("Working page %d/%d (%s)...",$page,++$current,$user->id));
+            $user_ldapDn = $user->ldapDn;
+            $searchKey = $nkz = array_shift(explode(',', $user_ldapDn));
+            $indent = PHP_EOL."                                    ";
+            common::logWrite(sprintf("Processing %s entry %d of page %d (%s, %s, %s) ...", $nkz, ++$current, $page, $user->id, $directoryId, $user_ldapDn), STDOUT, PHP_EOL);
             $reference = $user->split(@id, '', @domain, @postoffice, @user);
             // ldap-search
-            $searchKey = array_shift(explode(',', $user->ldapDn));
+	    #$searchKey = $user_ldapDn;
             try {
                 $ldapRes = common::searchLDAP($searchKey);
-                $ldapMail = strtolower($ldapRes->emailAddresses[0]);
+		#print_r($ldapRes());
+                $ldapMail = getMailFromResult($ldapRes); // strtolower($ldapRes->postOfficeBox);
                 $mailParts = explode('@', $ldapMail);
                 $prefMailId = array_shift($mailParts);
                 $internetDomain = array_shift($mailParts);
             } catch (Exception $e) {
-                common::logWrite("LDAP Search failed for User <{$user->id}> (s: $searchKey): {$e->getMessage()}",STDERR,"\n");
+                common::logWrite("LDAP Search 2 failed for User <{$user->id}> (s: $searchKey): {$e->getMessage()}",STDERR,"\n");
                 common::logWrite(" - - Trace: ".$e->getTraceAsString(),STDERR,"\n");
                 // break each-function here
                 return;
@@ -361,7 +409,7 @@ if(cfg::$move||cfg::$update) {
                                 )->reload();
 
                                 $givenName=$ldapRes(@givenName,'');
-                                $surname=$ldapRes(@surname,'');
+				$surname=$ldapRes(@surname,'');
                                 $title=$ldapRes(@title,'');
                                 if($title)$title.=' ';
                                 $internetDomain=$user->internetDomainName->value;
@@ -433,5 +481,5 @@ EMAIL;
     //echo "\n";
 }
 
-common::logWrite("Done.",STDOUT,"\n");
+common::logWrite(NOISE."Done.",STDOUT,PHP_EOL);
 //fwrite(STDOUT,sprintf("[%s] Done.   \n",date("d.m.Y h:i:s")));

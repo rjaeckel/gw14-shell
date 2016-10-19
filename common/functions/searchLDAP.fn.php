@@ -23,7 +23,7 @@ function searchLDAP ($searchKey) {
 			$sr = Directory::search( null, 'filter=(' . $searchKey . ')' );
 		} catch (Exception $e) {
 			$sr=false;
-			common::logWrite("LDAP Search #$loop failed: ". $e->getMessage(),STDERR,"\n");
+			common::logWrite("LDAP Search 1 for searchKey='$searchKey' #$loop failed: ". $e->getMessage(),STDERR,"\n");
 		}
 	} while (!$sr || substr($sr->header('http/1.1'), 0, 1) != '2');
 	// read out email-address data
@@ -33,3 +33,4 @@ function searchLDAP ($searchKey) {
 	}
 	return $sr->item();
 }
+

@@ -128,7 +128,8 @@ abstract class wadlProxy {
                 $data[]=$arg;
             }
         }
-        
+       
+        // append query parameter (after ? and concatenated with & ampersand)
         if(!empty($qs)) {
             $url.='?'.\implode('&',$qs);
         }
@@ -202,3 +203,4 @@ abstract class wadlProxy {
         return array_merge($this->vars,array('methods'=>array_keys((array)$this->methods)));
     }
 }
+
