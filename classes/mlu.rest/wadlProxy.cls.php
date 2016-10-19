@@ -133,8 +133,6 @@ abstract class wadlProxy {
         if(!empty($qs)) {
             $url.='?'.\implode('&',$qs);
         }
-        //echo "DLM: url=$url" . PHP_EOL ;
-        //echo "DLM: data=$data" . PHP_EOL ;
         return \call_user_func_array(static::$restFunction,$data);
     }
     /**
@@ -205,3 +203,4 @@ abstract class wadlProxy {
         return array_merge($this->vars,array('methods'=>array_keys((array)$this->methods)));
     }
 }
+
