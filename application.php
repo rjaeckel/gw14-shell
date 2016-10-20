@@ -13,8 +13,7 @@ use \mlu\common;
  */
 
 // init configuration
-require('common/config.php');
-
+require_once 'common/config.php';
 require_once __classpath.'mlu/common.cls.php';
 
 // load runtime-files
