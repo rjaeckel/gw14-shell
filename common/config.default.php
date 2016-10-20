@@ -44,7 +44,7 @@ def('__gwApiServer',
         'https://groupwise.domain:9710');
 //base url for rest-interface
 def('__gwApiBase',
-        'gwadmin-service');
+        '/gwadmin-service/');
 // arguments to pass into curl invocation
 def('__curlArgs',
         '-k -u admin:admin -H Accept:\ application/json -H Content-Type:\ application/json');

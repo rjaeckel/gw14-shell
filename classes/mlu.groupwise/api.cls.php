@@ -19,17 +19,13 @@ class api extends rest\api {
 	 */
 	public $baseUrl = __gwApiBase;
 
+	public $base = __gwApiServer;
+
 	/**
 	 * curl arguments to be passed in every call
 	 * @var string
 	 */
 	public $curlArgs= __curlArgs;
-
-	public function __construct ( $base=null,$curlArgs=null ) {
-		$this->base=__gwApiServer.'/';
-		$this->baseUrl=__gwApiBase.'/';
-		parent::__construct( $base, $curlArgs );
-	}
 
 	/**
 	 * Invoke the object to make calls even shorter
@@ -40,6 +36,15 @@ class api extends rest\api {
 	 */
 	public function __invoke($url,$method=get,$data=null) {
 		$callData=\call_user_func_array(__NAMESPACE__.'\apiResult::merge', \array_slice(\func_get_args(),2));
-		return $this->$method(\strpos($url, $this->baseUrl)===0?$url:$this->baseUrl.$url,$callData);
+		return $this->$method($this->sanitizeUrl($url),$callData);
+	}
+
+	/**
+	 * @param string $url
+	 *
+	 * @return mixed
+	 */
+	protected function sanitizeUrl($url) {
+		return stripos($url,$this->baseUrl)===0?$url:($this->baseUrl.$url);
 	}
 }
