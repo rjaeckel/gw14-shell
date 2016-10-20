@@ -165,6 +165,11 @@ abstract class directory extends restAbstractLdapServer{
 	 */
 	public $syncEnabled;
 	/**
+	 * @var int $syncExpireOffsetDays
+	 * minOccurs: 0
+	 */
+	public $syncExpireOffsetDays;
+	/**
 	 * @var string $syncPassword
 	 * minOccurs: 0
 	 */

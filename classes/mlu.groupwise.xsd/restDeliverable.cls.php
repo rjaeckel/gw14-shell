@@ -29,4 +29,14 @@ abstract class restDeliverable extends restAddressable{
 	 * minOccurs: 0
 	 */
 	public $password;
+	/**
+	 * @var int $transferSharedItems
+	 * minOccurs: 0
+	 */
+	public $transferSharedItems;
+	/**
+	 * @var int $transferSharedItemsStart
+	 * minOccurs: 0
+	 */
+	public $transferSharedItemsStart;
 }

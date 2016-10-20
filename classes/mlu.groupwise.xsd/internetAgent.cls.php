@@ -335,10 +335,10 @@ abstract class internetAgent extends restGateway{
 	 */
 	public $logMaxAge;
 	/**
-	 * @var int $logMaxDiskSpace
+	 * @var int $logMaxSize
 	 * minOccurs: 0
 	 */
-	public $logMaxDiskSpace;
+	public $logMaxSize;
 	/**
 	 * @var int $mailbombProtection
 	 * minOccurs: 0
