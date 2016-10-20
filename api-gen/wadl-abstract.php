@@ -755,7 +755,10 @@ classdoc;
         $data[]="\t}";
     }
     $data[]=$docStatic[]=$docInstance[]="}";
-    common::write2file(__classpath.common::namespacePath(__gwWadlNamespace).$class->__className.'.cls.php',$dataHead,$data);
+    common::write2file(
+    	__classpath.common::namespacePath(__gwWadlNamespace).$class->__className.'.cls.php',
+	    implode(PHP_EOL,$dataHead),implode(PHP_EOL,$data)
+    );
 }
 
 //file_put_contents(__root.'classes/gw-proxies.php', implode(PHP_EOL, $data));

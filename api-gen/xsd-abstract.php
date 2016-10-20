@@ -132,14 +132,13 @@ foreach ($classes as $k=>$v) {
 foreach ($subClasses as $c) { unset($classes[$c]); }
 
 shell_exec('rm '.__classpath.common::namespacePath(__gwXsdNamespace).'*');
-
-$headTxt=array('<?php','namespace '.__gwXsdNamespace.';',
-<<<header
+$xsdNamespace=__gwXsdNamespace;
+$headTxt=<<<header
+<?php namespace $xsdNamespace;
 /**
   * XSD-abstracted interfaces...
   */
-header
-);
+header;
 
 /*foreach($elements as $ele) {
     if(strtolower($ele->name)!=strtolower($ele->type) && $ele->name!="list") {
@@ -160,7 +159,7 @@ foreach($selects as $vali) {
         $filetxt[]="\tconst $c='$c';";
     }
     $filetxt[]='}';
-    common::write2file(xsdBase.$vali->name.'.cls.php',$headTxt,$filetxt);
+    common::write2file(xsdBase.$vali->name.'.cls.php',$headTxt,implode(PHP_EOL,$filetxt));
 }
 
 function classCode($classes,$prepend) {
@@ -177,7 +176,7 @@ function classCode($classes,$prepend) {
             $codeLines[]="\tpublic \$$prop->name;";
         }
         $codeLines[]="}".PHP_EOL;
-        common::write2file(xsdBase.$class->name.'.cls.php',$prepend,$codeLines);
+        common::write2file(xsdBase.$class->name.'.cls.php',$prepend,implode(PHP_EOL,$codeLines));
         if(isset($class->_subClasses)) { classCode($class->_subClasses,$prepend); }
     }
 }
