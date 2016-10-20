@@ -47,14 +47,10 @@ if(__devmode) {
 		$devData[]=<<<doc
 /**
  * list all items of $type and optionally filer result by a query-string and container
- * <p>request: get list/$type</p>
- * <p>additionally to the object\'s attributes you may provide the following parameters:<ul>
-<li>count - set the number of results per page</li>
-<li>attrs - set properties to display by comma-separated list</li>
-<li>nextId - get the next page by providing the matching number in result-set</li>
-<li>return=ids - do not render data but return matching internal ids</li>
-<li>ids - get objects matching internal ids; comma-separated list</li>
-</ul></p>
+ * 
+ * request: get list/$type
+ * additionally to the object\'s attributes you may provide the following parameters:<ul><li>count - set the number of results per page</li><li>attrs - set properties to display by comma-separated list</li><li>nextId - get the next page by providing the matching number in result-set</li><li>return=ids - do not render data but return matching internal ids</li><li>ids - get objects matching internal ids; comma-separated list</li></ul>
+ * 
  * @param string \$filter Querystring to put into the request-url where name=value meets property-name and object-value
  * @param string \$base ID of containing object
  * @return mlu\groupwise\apiResult|mlu\groupwise\xsd\listResult
