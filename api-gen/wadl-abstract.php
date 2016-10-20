@@ -2,8 +2,8 @@
 
 namespace mlu\rest\abstractions\wadl;
 
-require '../common/config.php';
-require '../common/autoloader.php';
+require_once 'common/config.php';
+require_once 'common/autoloader.php';
 use mlu\common;
 
 /**
@@ -40,8 +40,6 @@ use mlu\common;
  *   create('Postoffice',$d,$postofficeData);
  * Beispiel list/{type}?{querystring}
  *   list($type,$querystring)
- *   list($querystring)
- *   {$type}::list($querystring)
  *   oder auch (wobei hierbei das ergenis bereits nach domain gefiltert ist)
  *   $domain->list($type,$querystring)
  *   $domain->list{$type}($querystring)
@@ -70,7 +68,11 @@ use mlu\common;
  * Generate walkable tree from xml-file
  */
 $reader = new \XMLReader();
-$reader->open(__gwApiServer.__gwApiBase.'application.wadl');
+//$reader->open(implode('/',array(__gwApiServer,__gwApiBase,'application.wadl')));
+$reader->xml(file_get_contents(
+	implode('/',array(__gwApiServer,__gwApiBase,'application.wadl')), false,
+	stream_context_create(array('ssl'=>array ('verify_peer'=>false,'verify_peer_name'=>false)))
+ ));
 $tree = common::xml2assoc($reader);
 
 /**
@@ -431,7 +433,7 @@ mergeSubUrls($fnlist);
  * @category helper
  */
 function rootsToSkip() {
-    return array('list');
+    return array('list','node');
 }
 /**
  * put items from one object to another removing the source's one
@@ -523,7 +525,14 @@ function flattenMethods($list,$insideObject=0,$target=null) {
             } else {
                 if($subObjects==1 && 1<count($keys=array_keys((array)$target))) {
                     $targets=array_keys((array)$methods->__subs);
-                    trigger_error("orphan-mapping:\"".implode('/',urlStack())."/..\" target:\"$targets[0]\" methods:".  implode(',', array_diff($keys,array('__subs'))),E_USER_NOTICE);
+	                common::logWrite(sprintf(
+	                	'Mapping orphan: %s into %s with methods: %s %s',
+		                implode('/',urlStack()).'/..',
+		                $targets[0],
+		                implode(',', array_diff($keys,array('__subs'))),
+		                PHP_EOL
+                    ),STDERR);
+	                //common::logWrite("orphan-mapping:\"".implode('/',urlStack())."/..\" target:\"$targets[0]\" methods:".  implode(',', array_diff($keys,array('__subs'))),STDERR);
                     mergeAndReduce($target, $methods->__subs->{$targets[0]},function($m){
                         $m->__isStatic='object';
                     });
@@ -595,7 +604,7 @@ function getFilledNodes($list,$level=0) {
     if($level==0) {
         $res = (array)$res;
         ksort($res);
-        echo "Generating Actions for ".implode(', ', array_keys($res)).PHP_EOL;
+        __devmode && printf("Generating Actions for %s ...".PHP_EOL,implode(', ', array_keys($res)));
         $res=(object)$res;
     }
     
@@ -711,13 +720,15 @@ classdoc;
     $data[]="\t\t\$this->methods=json_decode('".str_replace('\'','\\\'',json_encode($class))."');";
     $data[]="\t}";
     // walk methods
+	$linkTarget=gwShellBin;
+	$linkPlace = __binpath;
     foreach ($class as $mName=>$mData) {
         if($mName[0]=='_') { continue; }
         
-        $symlink = $class->__className.'.'.$mName;
-        echo "Creating action symlink: <$symlink>: ".(@symlink(__root.gwShellBin,__binpath.$symlink)?'ok':'failed').PHP_EOL;
-        
-        // paramStatic paramQuery path action requestType responseType doc
+        $symlink = $linkPlace.$class->__className.'.'.$mName;
+	    $err = trim(`ln -frs $linkTarget $symlink`);
+	    common::logWrite(sprintf("Creating symlink %s: %s %s",$symlink,$err?:'ok',__devmode||$err?PHP_EOL:"\r"));
+	    // paramStatic paramQuery path action requestType responseType doc
         $data[]=$docStatic[]=$docInstance[]="\t/**";
         if(isset($mData->doc)) {
             $data[]=$docStatic[]=$docInstance[]="\t * ".$mData->doc;

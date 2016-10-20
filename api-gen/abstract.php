@@ -1,7 +1,10 @@
 #!/usr/bin/env php
 <?php
 
-error_reporting(error_reporting()^E_USER_NOTICE);
+//error_reporting(error_reporting()^E_USER_NOTICE);
 
-require ('wadl-abstract.php');
-require ('xsd-abstract.php');
+//define('__devmode',true);
+file_exists('common/config.php') || chdir('..');
+
+require (__DIR__.'/wadl-abstract.php');
+require (__DIR__.'/xsd-abstract.php');
