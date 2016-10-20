@@ -1,4 +1,5 @@
-<?php namespace mlu\groupwise\xsd;
+<?php
+namespace mlu\groupwise\xsd;
 /**
   * XSD-abstracted interfaces...
   */
@@ -334,10 +335,10 @@ abstract class internetAgent extends restGateway{
 	 */
 	public $logMaxAge;
 	/**
-	 * @var int $logMaxSize
+	 * @var int $logMaxDiskSpace
 	 * minOccurs: 0
 	 */
-	public $logMaxSize;
+	public $logMaxDiskSpace;
 	/**
 	 * @var int $mailbombProtection
 	 * minOccurs: 0

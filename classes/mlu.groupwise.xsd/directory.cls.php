@@ -1,4 +1,5 @@
-<?php namespace mlu\groupwise\xsd;
+<?php
+namespace mlu\groupwise\xsd;
 /**
   * XSD-abstracted interfaces...
   */
@@ -163,11 +164,6 @@ abstract class directory extends restAbstractLdapServer{
 	 * minOccurs: 0
 	 */
 	public $syncEnabled;
-	/**
-	 * @var int $syncExpireOffsetDays
-	 * minOccurs: 0
-	 */
-	public $syncExpireOffsetDays;
 	/**
 	 * @var string $syncPassword
 	 * minOccurs: 0
