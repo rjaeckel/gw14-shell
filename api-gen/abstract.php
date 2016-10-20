@@ -3,7 +3,8 @@
 
 //error_reporting(error_reporting()^E_USER_NOTICE);
 
-//define('__devmode',true);
+// enable generation of development information too
+define('__devmode',true);
 file_exists('common/config.php') || chdir('..');
 
 require (__DIR__.'/wadl-abstract.php');
