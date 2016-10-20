@@ -39,6 +39,6 @@ if(!def('__devmode')) {
     // enable notices
     error_reporting(error_reporting()|E_NOTICE);
     // print memory stats
-    register_shutdown_function('call_user_func','\mlu\common::memInfo');
+    register_shutdown_function('call_user_func','mlu\common::memInfo');
 }
 
