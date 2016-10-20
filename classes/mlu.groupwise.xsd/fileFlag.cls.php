@@ -1,5 +1,4 @@
-<?php
-namespace mlu\groupwise\xsd;
+<?php namespace mlu\groupwise\xsd;
 /**
   * XSD-abstracted interfaces...
   */
