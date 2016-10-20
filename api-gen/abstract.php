@@ -7,5 +7,6 @@
 define('__devmode',true);
 file_exists('common/config.php') || chdir('..');
 
-require (__DIR__.'/wadl-abstract.php');
-require (__DIR__.'/xsd-abstract.php');
+require __DIR__.'/wadl-abstract.php';
+require __DIR__.'/xsd-abstract.php';
+require 'application.php';
