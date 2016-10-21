@@ -70,7 +70,7 @@ use mlu\common;
 $reader = new \XMLReader();
 //$reader->open(implode('/',array(__gwApiServer,__gwApiBase,'application.wadl')));
 $reader->xml(file_get_contents(
-	implode('/',array(__gwApiServer,__gwApiBase,'application.wadl')), false,
+	implode(array(__gwApiServer,__gwApiBase,'application.wadl')), false,
 	stream_context_create(array('ssl'=>array ('verify_peer'=>false,'verify_peer_name'=>false)))
  ));
 $tree = common::xml2assoc($reader);
@@ -725,10 +725,13 @@ classdoc;
     foreach ($class as $mName=>$mData) {
         if($mName[0]=='_') { continue; }
         
-        $symlink = $linkPlace.$class->__className.'.'.$mName;
-	    $err = trim(`ln -frs $linkTarget $symlink`);
-	    common::logWrite(sprintf("Creating symlink %s: %s %s",$symlink,$err?:'ok',__devmode||$err?PHP_EOL:"\r"));
-	    // paramStatic paramQuery path action requestType responseType doc
+        $symlink = /*$linkPlace.*/$class->__className.'.'.$mName;
+	chdir($linkPlace);
+	//fwrite(STDOUT,"in ".getcwd().": ln -fs ../$linkTarget $symlink\n");
+	$err = trim(`ln -fs ../$linkTarget $symlink`);
+	chdir ('..');
+	common::logWrite(sprintf("Creating symlink %s: %s %s",$symlink,$err?:'ok',__devmode||$err?PHP_EOL:"\r"));
+	// paramStatic paramQuery path action requestType responseType doc
         $data[]=$docStatic[]=$docInstance[]="\t/**";
         if(isset($mData->doc)) {
             $data[]=$docStatic[]=$docInstance[]="\t * ".$mData->doc;

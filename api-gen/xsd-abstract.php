@@ -11,7 +11,7 @@ use mlu\common;
 $reader = new \XMLReader();
 //$reader->open(implode('/',array(__gwApiServer,__gwApiBase,'xsd1.xsd')));
 $reader->xml(file_get_contents(
-     implode('/',array(__gwApiServer,__gwApiBase,'xsd1.xsd')), false,
+     implode(array(__gwApiServer,__gwApiBase,'xsd1.xsd')), false,
      stream_context_create(array('ssl'=>array ('verify_peer'=>false,'verify_peer_name'=>false)))
  ));
 $tree = common::xml2assoc($reader);
