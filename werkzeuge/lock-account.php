@@ -192,10 +192,17 @@ function unexpireAccount($u, $db, $reason)
  * @param $nkz , fünfstelliges Nutzerkennzeichen
  * @param $u , NULL, wenn Nutzer im Groupwise nicht (mehr) existiert.
  * @param $db , DB-Verbindung zu MySQL a6arv_groupwise_addresses
- * @param $count , Anzahl der (Ent)sperreinträge zum NKZ
+ * @param $entryCount , Anzahl der (Ent)sperreinträge zum NKZ
+ * @param $userCount , Anzahl der im Groupwise gefundenen USER-Objekte zum 'nkz'
+ * @param $maxForceInactive , Folgende Werte sind möglich:
+ *           1 wenn mindestens einer der 'entryCount' Einträge auf 'GESPERRT' stand,
+ *           2 wenn Nutzer durch früheren Lauf als im Groupwise gelöscht erkannt wurde
+ *           0 sonst
+ * @param $minExpirationDate , kleinstes Ablaufdatum über alle 'entryCount' Einträge
  */
-function refreshLatestEntryFromGroupWise($id, $nkz, $u, $db, $count)
+function refreshLatestEntryFromGroupWise($id, $nkz, $u, $db, $entryCount, $userCount, $maxForceInactive, $minExpirationDate)
 {
+  $noise = "       "; // will be filled with "[NOISE]" to ease suppressing redundant information in cronjobs
   if (is_null($u)) {
     $fullname = "UNKNOWN"; // Nutzer wurde im GroupWise gelöscht, umbenannt oder existierte noch nie
     $expirationDateTime = null;
@@ -203,6 +210,9 @@ function refreshLatestEntryFromGroupWise($id, $nkz, $u, $db, $count)
     // fwrite(STDERR, sprintf("Search for user <%s> did not succeed: found %d" . PHP_EOL, $nkz, $foundCount));
     $mailboxStatus = "   mailbox deleted   ";
     $mailboxSize = " none";
+    if ($forceInactive == $maxForceInactive) {
+        $noise = "[NOISE]";
+    };
   } else {
     /* @var $u iUser|apiResult */
     $lastname = $u('surname', '');
@@ -223,6 +233,9 @@ function refreshLatestEntryFromGroupWise($id, $nkz, $u, $db, $count)
       $expireDisplay = "....-..-..";
     }
     $forceInactive = $u('forceInactive', null) | 0;
+    if ($forceInactive == $maxForceInactive) {
+        $noise = "[NOISE]";
+    };
     if ($forceInactive == 0) {
       $inactiveDisplay = "active";
     } elseif ($forceInactive == 1) {
@@ -233,9 +246,9 @@ function refreshLatestEntryFromGroupWise($id, $nkz, $u, $db, $count)
     $mailboxStatus = "$inactiveDisplay exp=$expireDisplay";
   }
 
-  //$db_stats = "$mailboxSize (id=$id, count=$count)";
+  //$db_stats = "$mailboxSize (id=$id, count=$entryCount)";
   $db_stats = "";
-  printf("[$nkz: $mailboxStatus] $fullname $db_stats" . PHP_EOL);
+  printf("[$nkz: $mailboxStatus] $noise $fullname $db_stats" . PHP_EOL);
   $stmt = $db->prepare("UPDATE `account_locking_reasons` SET `force_inactive` = ?, `expiration_date`=? WHERE `nkz`=?");
   $success = $stmt->execute(array( $forceInactive, $expirationDateTime, $nkz ));
   #var_dump($success);
@@ -261,27 +274,37 @@ function hasLockingReason($db, $nkz)
 
 function refreshLockingStatusFromGroupWise($db)
 {
-  printf("Uebernehme Sperr- und Ablaufstatus (forceInactive, expirationDate) aus GroupWise ... \n");
+  printf("[NOISE] Uebernehme Sperr- und Ablaufstatus (forceInactive, expirationDate) aus GroupWise ... \n");
 
   foreach ($db->query("SELECT nkz, max(id) id, count(*) cnt, max(force_inactive) max_force_inactive, min(expiration_date) min_expiration_date FROM account_locking_reasons GROUP BY nkz ORDER BY max_force_inactive desc, min_expiration_date asc, nkz asc") as $row) {
-    //print_r($row);
+    // Values from DB
     $nkz = $row[ 'nkz' ];
     $id = $row[ 'id' ];
-    $count = $row[ 'cnt' ];
+    $entryCount = $row[ 'cnt' ];
+    $maxForceInactive = $row['max_force_inactive'];
+    $minExpirationDate = $row['min_expiration_date'];
+
+    // values from GroupWise
     $users = Users("name=$nkz");
-    $foundCount = $users->resultInfo->outOf;
+    $userCount = $users->resultInfo->outOf;
 
-    $handleFound = function($u) use ($db, $nkz, $id, $count) {
-      refreshLatestEntryFromGroupWise($id, $nkz, $u, $db, $count);
+    // some output for debugging
+    //print_r($row);
+
+    // event handlers ...	
+    $handleUserFound = function($u) use ($db, $nkz, $id, $entryCount, $userCount, $maxForceInactive, $minExpirationDate) {
+      refreshLatestEntryFromGroupWise($id, $nkz, $u, $db, $entryCount, $userCount, $maxForceInactive, $minExpirationDate);
     };
 
-    $handleMissing = function($u) use ($db, $nkz, $id, $count) {
-      refreshLatestEntryFromGroupWise($id, $nkz, null, $db, $count);
+    $handleUserMissing = function($u) use ($db, $nkz, $id, $entryCount, $userCount, $maxForceInactive, $minExpirationDate) {
+      refreshLatestEntryFromGroupWise($id, $nkz, null, $db, $entryCount, $userCount, $maxForceInactive, $minExpirationDate);
     };
-    if ($foundCount == 1) {
-      $users->each($handleFound);
+
+    // ... and their application
+    if ($userCount > 0) {
+      $users->each($handleUserFound);
     } else {
-      $users->each($handleMissing);
+      $users->each($handleUserMissing);
     }
   }
 
