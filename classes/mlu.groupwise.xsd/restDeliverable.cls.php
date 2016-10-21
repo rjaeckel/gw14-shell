@@ -1,5 +1,4 @@
-<?php
-namespace mlu\groupwise\xsd;
+<?php namespace mlu\groupwise\xsd;
 /**
   * XSD-abstracted interfaces...
   */
@@ -29,4 +28,14 @@ abstract class restDeliverable extends restAddressable{
 	 * minOccurs: 0
 	 */
 	public $password;
+	/**
+	 * @var int $transferSharedItems
+	 * minOccurs: 0
+	 */
+	public $transferSharedItems;
+	/**
+	 * @var int $transferSharedItemsStart
+	 * minOccurs: 0
+	 */
+	public $transferSharedItemsStart;
 }

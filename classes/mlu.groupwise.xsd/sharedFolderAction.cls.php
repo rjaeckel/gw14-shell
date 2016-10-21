@@ -2,10 +2,10 @@
 /**
   * XSD-abstracted interfaces...
   */
-abstract class restDmsLogCleanupOptions extends propertiesProxy{
+abstract class sharedFolderAction {
 	/**
-	 * @var int $maxDays
+	 * @var int $expireDate
 	 * minOccurs: 0
 	 */
-	public $maxDays;
+	public $expireDate;
 }
