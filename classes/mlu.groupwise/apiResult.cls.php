@@ -402,13 +402,16 @@ class apiResult extends rest\apiResult
     }
 
     function requestPath() {
-        return array_shift($this->splitRequestUrl());
+    	isset($this->requestPath)||$this->splitRequestUrl();
+        return $this->requestPath;
     }
 
     protected function splitRequestUrl() {
         $split=explode('?',$this->requestUrl(),2);
         if(count($split)<2) $split[]='';
-        return $split;
+	    $this->requestPath=array_shift($split);
+	    $this->requestQueryString=array_shift($split);
+        //return $split;
     }
 
     function requestUrl() {
@@ -420,7 +423,8 @@ class apiResult extends rest\apiResult
     }
 
     function requestQueryVariables() {
-        parse_str(array_pop($this->splitRequestUrl()),$res);
+	    isset($this->requestQueryString)||$this->splitRequestUrl();
+        parse_str($this->requestQueryString,$res);
         return $res;
     }
 
@@ -476,7 +480,7 @@ class apiResult extends rest\apiResult
             return call_user_func_array(array($this,@seek),array_merge(array($match[1]),$arguments));
         }
         if(preg_match("/^get([a-z]+)/i",$name,$match)) {
-	    return call_user_func_array(array($this,@getInstanceByUri),array_merge(array('\\mlu\\groupwise\\wadl\\'.lcfirst($match[1])),$arguments));
+	        return call_user_func_array(array($this,@getInstanceByUri),array_merge(array(lcfirst($match[1])),$arguments));
 	    }
         throw new Exception("Undefined method: $name");
     }
@@ -553,12 +557,11 @@ class apiResult extends rest\apiResult
     /**
      * split an attribute by dots into into named parts
      * @param $attr     string attribute name to split
-     * @param $name     string name of the first chunk
-     * @param $name1,... string name of the second chunk...
+     * @param $name,... string names the first chunks
      *
      * @return string[]
      */
-    public function split($attr,$name=null,$name1=null) {
+    public function split($attr,$name=null) {
         $args=func_get_args();
         $args[0]=$this->$attr;
         return call_user_func_array(common::getStructSplitter(),$args);
@@ -569,7 +572,7 @@ class apiResult extends rest\apiResult
      *
      * (wrapper for list/{TYPE}/{ID}
      *
-     * @param $type string function to search with, based on @url /common/gwAdpi-common.php <p>
+     * @param $type string function to search with, based on @url /common/gwApi-common.php <p>
      *              e.g PostOffices,Users,BaseObjects,Nicknames...</p>
      * @param $qryStr string Query string to pass into search
      * @return apiResult|listResult
@@ -584,18 +587,23 @@ class apiResult extends rest\apiResult
 	 * @param $className
 	 *
 	 * @return rest\wadlProxy|$className
-	 * @throws Exception if Path lengths mismatch.
+	 * @throws Exception if path lengths mismatch.
 	 */
     function getInstanceByUri($className,$force=false){
-	    /** @var rest\wadlProxy $instance */
-	    $instance=new $className();
+	    $absClass=__gwWadlNamespace.'\\'.$className;
+    	/** @var rest\wadlProxy $instance */
+	    $instance=new $absClass();
 	    // read out url of object an strip prefix
-		$url = preg_replace('/^\/?gwadmin-service\//','',$this->url());
+		$url = preg_replace('/^\/?'.__gwApiBase.'\/?/','',$this->url());
 	    $uri=explode('/',$url);
+
+
+
 		// get url to compare from api
 	    $objectUri = explode('/',$instance->getMethodInfo('object')->path);
 	    // check for equal count on both comparators
-	    if(!$force && 0!=count($uri)-count($objectUri)) throw new Exception("Paths mismatch");
+	    if(!$force && 0>($delta=count($uri)-count($objectUri))) throw new Exception("Paths mismatch");
+
 	    // read out properties
 	    array_map(function($real,$template)use($instance){
 		    if(!preg_match('/(.*)\{(.*)\}(.*)/',$template,$matches)) return false;
@@ -653,4 +661,5 @@ class apiResult extends rest\apiResult
         return $fn(\func_num_args() ? \func_get_arg(0) : $this());
     }
 }
+
 

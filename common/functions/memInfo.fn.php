@@ -2,10 +2,11 @@
 
 namespace mlu\common\functions;
 
+use mlu\common;
 /**
  * triggers two notices about Memory Usage
  */
 function memInfo() {
-    trigger_error(sprintf("Peak Mem: %.3fMB",memory_get_peak_usage()/1048576),E_USER_NOTICE);
-    trigger_error(sprintf("Curr Mem: %.3fMB",memory_get_usage()/1048576),E_USER_NOTICE);
+	common::logWrite(sprintf("Peak Mem: %.3fMB\n",memory_get_peak_usage()/1048576),STDERR);
+	common::logWrite(sprintf("Curr Mem: %.3fMB\n",memory_get_usage()/1048576),STDERR);
 }

@@ -128,7 +128,7 @@ abstract class wadlProxy {
                 $data[]=$arg;
             }
         }
-       
+
         // append query parameter (after ? and concatenated with & ampersand)
         if(!empty($qs)) {
             $url.='?'.\implode('&',$qs);

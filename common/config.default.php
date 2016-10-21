@@ -10,7 +10,7 @@ namespace mlu\common;
  * 
  */
 
-// enable to create some files in /dev so dynamicly defined functions are accessible for ide
+// enable to create some files in /dev so dynamically defined functions are accessible for ide
 // shows additional errors and information if enabled
 // production-value: false
 def('__devmode',
@@ -56,11 +56,10 @@ def('gwShellBin','gw.shell');
 def('__docpath',
         __root.'docs/');
 // where to place binaries for shell-execution
-def('__binpath',
-        __root.'actions/');
+def('__binpath', 'actions/');
 
 // where to search for class files
-def('__classpath',__root.'classes/');
+def('__classpath','classes/');
 
 // abstraction namespaces
 def('__gwXsdNamespace','mlu\groupwise\xsd');

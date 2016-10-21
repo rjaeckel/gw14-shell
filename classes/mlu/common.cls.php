@@ -1,6 +1,7 @@
 <?php
 namespace mlu;
-use mlu\common\functions,mlu\groupwise as gw;
+use mlu\common\functions;
+use mlu\groupwise as gw;
 /*
  * function-autoloader
  */
@@ -25,6 +26,7 @@ use mlu\common\functions,mlu\groupwise as gw;
  * @method static mixed[] xml2assoc(\XMLReader $xml,int $d=0) @see function xml2assoc
  * @method static object xsdTypeInfo (string $class, bool $recurse=false) get information about an xsd abstraction
  * @method static gw\apiResult|gw\xsd\Nickname createNickname ($uid,$emailID,$iDomain='?',$attrs=array()) create nickname for any gw-object
+ * @method static int logWrite($msg,$target=STDOUT,$eol="\r") write line to log
  */
 class common {
     /**
