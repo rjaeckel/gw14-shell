@@ -296,9 +296,9 @@ function getMailFromResult($ldapRes)
     $mail = $mail2 = str_replace("@@", "@student.uni-halle.de", $mail);
     $mail = $mail3 = preg_replace("/@$/", ".uni-halle.de", $mail);
     if ($rawMail != $mail) {
-        common::logWrite("mailraw = $mail1" . PHP_EOL);
-        common::logWrite("mail_@@ = $mail2" . PHP_EOL);
-        common::logWrite("mail__@ = $mail3" . PHP_EOL);
+        common::logWrite(NOISE."mailraw = $mail1" . PHP_EOL);
+        common::logWrite(NOISE."mail_@@ = $mail2" . PHP_EOL);
+        common::logWrite(NOISE."mail__@ = $mail3" . PHP_EOL);
     }
     return $mail;
 }
@@ -340,7 +340,12 @@ if(cfg::$move||cfg::$update) {
             $user_ldapDn = $user->ldapDn;
             $searchKey = $nkz = array_shift(explode(',', $user_ldapDn));
             $indent = PHP_EOL."                                    ";
-            common::logWrite(sprintf("Processing %s entry %d of page %d (%s, %s, %s) ...", $nkz, ++$current, $page, $user->id, $directoryId, $user_ldapDn), STDOUT, PHP_EOL);
+            if ($directoryId == "xd" && strpos($user_ldapDn, 'Technische Konten') !== false) {
+		return;
+            } elseif ($directoryId == "xd_funcs" && strpos($user_ldapDn, 'Nutzer') !== false) {
+                return;
+            }
+            common::logWrite(sprintf(NOISE."Processing %s entry %d of page %d (%s, %s, %s) ...", $nkz, ++$current, $page, $user->id, $directoryId, $user_ldapDn), STDOUT, PHP_EOL);
             $reference = $user->split(@id, '', @domain, @postoffice, @user);
             // ldap-search
 	    #$searchKey = $user_ldapDn;
