@@ -70,7 +70,7 @@ class cfg {
             if(static::$$f) common::logWrite(NOISE." + $f".PHP_EOL);
         }
         foreach(static::$options as $k=>$v) {
-            common::logWrite(" - $k:$v\n");
+            common::logWrite(NOISE . " - $k:$v\n");
         }
     }
 }
@@ -269,7 +269,7 @@ function userUpdateAction($user,$internetDomain,$prefMailId,$more=array()) {
 function userMoveAction($targetPO,$users) {
     $indent = PHP_EOL."                                    ";
     return function() use($targetPO,$users,$indent) {
-        common::logWrite(sprintf("Moving %d users to PO %s:".$indent."%s",
+        common::logWrite(NOISE . sprintf("Moving %d users to PO %s:".$indent."%s",
             count($users),
             $targetPO,
             implode($indent, array_map(function($u){return $u->id;},$users))
