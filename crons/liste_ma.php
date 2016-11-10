@@ -12,8 +12,8 @@ use mlu\common,
   PDO;
 use \Exception;
 
-$USE_WORKERS = false;
-
+$USE_WORKERS = false; // true; // false
+$WORKER_COUNT = 5; // 20 legen gwdom0 komplett lahm!
 
 require_once 'application.php';
 
@@ -67,8 +67,9 @@ function getObjectEmailAddress($current, $objectId)
   return $email;
 }
 
-function handleUser($u, $ma_group)
+function handleUser($u)
 {
+  $verbose = false;
   $rawId = $u->id;
   if (sizeof((string)($rawId)) < 4) {
     //echo "ERR: $rawId" . PHP_EOL;
@@ -79,11 +80,13 @@ function handleUser($u, $ma_group)
   $first_email = null;
   $second_member = null;
   $second_email = null;
+  $owning_nkz = null;
 
   $extras = null;
   $member_count = 0;
+  $prefix = "UNK: ";
   if (isUser($rawId)) {
-    echo "USR: ";
+    $prefix = "USR: ";
     // Nutzer
 //    $extras = $u->visibility
 //      . " " . $u->postOfficeName
@@ -91,11 +94,13 @@ function handleUser($u, $ma_group)
 ////      . " " . $u->ldapDn;  // scheinbar nicht immer da
 ////    . " " . $u->mailboxSizeMb // scheinbar nicht immer vorhanden?
 //    ;
+    // $owning_nkz = $u->userName;
+
   } elseif (isGroup($rawId)) {
-    echo "GRP: ";
+    $prefix =  "GRP: ";
     $g = $u;
     $count = 0;
-    $items_per_page = 500;
+    $items_per_page = 50;
     $url = $g->url() . "/members?count=$items_per_page";
     // echo $url . PHP_EOL;
     $members = $g->requestApiInstance($url);
@@ -106,6 +111,7 @@ function handleUser($u, $ma_group)
 
     if (property_exists($page, 'nextId')) {
       $nextId = $page->nextId;
+	echo "  NEXT = $nextId ($rawId)" . PHP_EOL;
     } else {
       $nextId = null;
     }
@@ -133,52 +139,61 @@ function handleUser($u, $ma_group)
         $nextId = null;
       }
       $count += $page_count;
-      echo "$items_per_page -> $count WEITER $nextId" . PHP_EOL;
+      if ($verbose) {
+        echo "$items_per_page -> $count WEITER $nextId" . PHP_EOL;
+      }
     }
     $member_count = $count;
 
     // Gruppe (oder ggf. Nickname?)
-    //$members = $u->url() . '/members';
-    //$u->requestApiInstance($members, @POST, $ma_group);
-    //$g = Groups("id=$groupId")->select('id', $groupId)->item();
-    //$res = $g->requestApiInstance($members);
-    //$members = $u->doRequest ('listMembers',$data,$queryString);
-    //$u->requestApiInstance($members, @POST, $ma_group);
-    //echo $members . PHP_EOL;
     $extras = $extras
       . " " . $member_count
       . " " . $first_member;
+
+    if ($member_count == 1) {
+     if (isUser($first_member)) {
+       $first_parts = preg_split("/\./", $first_member);
+       if ($first_parts[1] != "gw-extern") {
+         $owning_nkz = array_pop($first_parts);
+       }
+     }
+    }
   } elseif (isNickname($rawId)) {
-    echo "NCK: ";
+    $prefix =  "NCK: ";
     $userDomain = $u->userDomainName;
     $userPostOffice = $u->userPostOfficeName;
     $userName = $u->userName;
     $userId = "USER.$userDomain.$userPostOffice.$userName";
     $first_member = $userId;
     $member_count = 1;
+    $owning_nkz = $userName;
   } else {
-    echo "UNK: ";
+    $prefix = "UNK: ";
   }
   /** @var $u apiResult|restAddressable */
   $u = $u->url(@GET);
 
   $objectId = $u->id;
 
-//
-//  $members = $u->url() . '/$members';
-//  if (0 === stripos($u->id, @USER)) {
-//    $u->requestApiInstance($members, @POST, $ma_group);
-//  }
-//  /** @var $u apiResult|restAddressable */
-//  $u2 = $u->url(@GET);
-//  echo "- {$u2->id} - {$u2->id}\n";
-
   $emailAdress = $u->emailAddresses[0];
   $mailLocalPart = $u(@preferredEmailId, $u(@name));
   $mailDomainPart = $u->internetDomainName->value;
   $gwLastMod = date("Y-m-d h:i:s", (int)($u->timeLastMod / 1000));
 
-  echo "{$rawId} - {$emailAdress}" . PHP_EOL;
+  if ($prefix == "USR: ") {
+    // $owning_nkz = $u->userName;
+  };
+  // Nutzer
+//    $extras = $u->visibility
+//      . " " . $u->postOfficeName
+//      . " " . $u->forceInactive
+////      . " " . $u->ldapDn;  // scheinbar nicht immer da
+////    . " " . $u->mailboxSizeMb // scheinbar nicht immer vorhanden?
+//    ;
+
+  if ($verbose) {
+    echo "$prefix {$rawId} - {$emailAdress}" . PHP_EOL;
+  }
   if (false) {
     echo "    objectId   = $objectId" . PHP_EOL;
     echo "    email      = {$mailLocalPart}@{$mailDomainPart}" . PHP_EOL;
@@ -192,10 +207,10 @@ function handleUser($u, $ma_group)
 
   $db = c::getPDO(unserialize(c::def('__listDb')));
   $sql = <<<EOD
-  INSERT INTO addr_ma (email_id, email_domain, gw_id, gw_time, db_time, member_id, member_email, members)
-  values (?, ?, ?, ?, ?, ?, ?, ?)
+  INSERT INTO addr_ma (email_id, email_domain, gw_id, gw_time, db_time, member_id, member_email, members, owning_nkz)
+  values (?, ?, ?, ?, ?, ?, ?, ?, ?)
   ON DUPLICATE KEY UPDATE
-  gw_id = ?, gw_time = ?, db_time = ?, member_id = ?, member_email = ?, members = ?
+  gw_id = ?, gw_time = ?, db_time = ?, member_id = ?, member_email = ?, members = ?, owning_nkz = ?
 EOD;
 
   $stmt = $db->prepare($sql);
@@ -203,40 +218,48 @@ EOD;
     // Primary Keys
     $mailLocalPart, $mailDomainPart,
     // INSERT values
-    $objectId, $gwLastMod, NULL, $first_member, $first_email, $member_count,
+    $objectId, $gwLastMod, NULL, $first_member, $first_email, $member_count, $owning_nkz,
     // UPDATE values
-    $objectId, $gwLastMod, NULL, $first_member, $first_email, $member_count));
+    $objectId, $gwLastMod, NULL, $first_member, $first_email, $member_count, $owning_nkz));
 
   if ($success !== true) {
     print_r($stmt->errorInfo());
   }
 }
 
-function userLoopCondition($u)
+function getNextId($u)
 {
-  return ($u = $u->nextListPage());
-  // return false;
+  $nextId = null;
+  try {
+    $ri = $u->resultInfo;
+    if (property_exists($ri, 'nextId')) {
+      $nextId = $ri->nextId;
+    }
+  } catch (Exception $e) {
+     }
+  return $nextId;
 }
 
 
-function main($USE_WORKERS)
+function main($use_workers, $worker_count)
 {
   /** @var PDO $db */
   $db = c::getPDO(unserialize(c::def('__listDb')));
 // clear table contents...
 //  $db->query("Delete from addr_ma", PDO::FETCH_OBJ);
 
-  if ($USE_WORKERS) {
-    $worker = new \worker(20);
+  if ($use_workers) {
+    $worker = new \worker($worker_count);
   } else {
     $worker = null;
   }
 
-  /** @var $ma_group membership * */
-  $ma_group = (object)array(@participation => @BLIND_COPY, @id => "GROUP.gwdomm.pom00.nutzer_ma");
 
+  $post_office = 'DOMAIN.gwdomm.pom00';
+  $objects_per_page = 500;
+  $MAX_PAGE_COUNT = 100;
   if (true) {
-    $u = Baseobjects('count=1000', 'DOMAIN.gwdomm.pom02');
+    $u = Baseobjects("count=$objects_per_page", $post_office);
   } else {
     // Test Cases
     $nicknames = Nicknames("name=nickname_abcde");
@@ -246,23 +269,33 @@ function main($USE_WORKERS)
     $u = $groups;
     $u = $users;
   }
+  $page = 0;
+  $nextId = null;
   do {
-    if ( !$USE_WORKERS) {
-      $u->each(function($u) use ($worker, $ma_group) {
-        handleUser($u, $ma_group);
+    $nextId = getNextId($u);
+    $page += 1;
+    echo "page = $page, objects_per_page = $objects_per_page, nextId = $nextId" . PHP_EOL;
+    if (!$use_workers) {
+      $u->each(function($u) use ($worker) {
+        handleUser($u);
       });
     } else {
-      $u->each(function($u) use ($worker, $ma_group) {
-        /** @var $u apiResult|restAddressable */
-        $worker->enqueue(function() use ($u, $ma_group) {
-          handleUser($u, $ma_group);
-        })->work(false);
-      });
+      /** @var $u apiResult|restAddressable */
+      $worker->enqueue(function() use ($u) {
+        handleUser($u);
+      })->work(false);
     }
-  } while (userLoopCondition($u));
-  if ($USE_WORKERS) {
+    if ($page > $MAX_PAGE_COUNT) {
+      break;
+    }
+    if (is_null($nextId)) {
+      break;
+    }
+    $u = Baseobjects("count=$objects_per_page&nextId=$nextId", $post_office);
+  } while (true); // userLoopCondition($u));
+  if ($use_workers) {
     $worker->work()->wait();
   }
 }
 
-main($USE_WORKERS);
+main($USE_WORKERS, $WORKER_COUNT);
