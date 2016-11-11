@@ -317,11 +317,11 @@ if(cfg::$move||cfg::$update) {
     	$filter = "attrs=${attributes_of_interest}&count=${page_size}&directoryId=${directoryId}";
         $usersToUpdate = Users($filter,$tempPOId);
     } elseif (isset(cfg::$options['in'])) {
-        common::logWrite("Moving and/or Updating specified $directoryId-users ...",STDOUT,PHP_EOL);
+        common::logWrite(NOISE."Moving and/or Updating specified $directoryId-users ...",STDOUT,PHP_EOL);
     	$filter = "attrs=${attributes_of_interest}&count=${page_size}&directoryId=${directoryId}";
 	$usersToUpdate = Users($filter,cfg::$options['in']);
     } else {
-        common::logWrite("Moving and/or Updating all $directoryId-users ...",STDOUT,PHP_EOL);
+        common::logWrite(NOISE."Moving and/or Updating all $directoryId-users ...",STDOUT,PHP_EOL);
     	$filter = "attrs=${attributes_of_interest}&count=${page_size}&directoryId=${directoryId}";
 	$usersToUpdate = Users($filter);
     }
