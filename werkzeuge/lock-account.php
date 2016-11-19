@@ -200,7 +200,7 @@ function unexpireAccount($u, $db, $reason)
  *           0 sonst
  * @param $minExpirationDate , kleinstes Ablaufdatum über alle 'entryCount' Einträge
  */
-function refreshLatestEntryFromGroupWise($id, $nkz, $u, $db, $entryCount, $userCount, $maxForceInactive, $minExpirationDate)
+function refreshLatestEntryFromGroupWise($id, $nkz, $u, $db, $entryCount, $userCount, $maxForceInactive, $minExpirationDate, $reason)
 {
   $noise = "       "; // will be filled with "[NOISE]" to ease suppressing redundant information in cronjobs
   if (is_null($u)) {
@@ -248,7 +248,7 @@ function refreshLatestEntryFromGroupWise($id, $nkz, $u, $db, $entryCount, $userC
 
   //$db_stats = "$mailboxSize (id=$id, count=$entryCount)";
   $db_stats = "";
-  printf("[$nkz: $mailboxStatus] $noise $fullname $db_stats" . PHP_EOL);
+  printf("[$nkz: $mailboxStatus] $noise $fullname ($reason) $db_stats" . PHP_EOL);
   $stmt = $db->prepare("UPDATE `account_locking_reasons` SET `force_inactive` = ?, `expiration_date`=? WHERE `nkz`=?");
   $success = $stmt->execute(array( $forceInactive, $expirationDateTime, $nkz ));
   #var_dump($success);
@@ -275,15 +275,23 @@ function hasLockingReason($db, $nkz)
 function refreshLockingStatusFromGroupWise($db)
 {
   printf("[NOISE] Uebernehme Sperr- und Ablaufstatus (forceInactive, expirationDate) aus GroupWise ... \n");
+  $sql =  <<<EOD
+select * from
+(SELECT nkz, id, max(id) max_id, count(*) cnt, max(force_inactive) max_force_inactive, min(expiration_date) min_expiration_date
+FROM account_locking_reasons 
+group by nkz) temp
+join account_locking_reasons r on r.id = temp.max_id
+order by r.id desc
+EOD;
 
-  foreach ($db->query("SELECT nkz, max(id) id, count(*) cnt, max(force_inactive) max_force_inactive, min(expiration_date) min_expiration_date FROM account_locking_reasons GROUP BY nkz ORDER BY max_force_inactive desc, min_expiration_date asc, nkz asc") as $row) {
+  foreach ($db->query($sql) as $row) {
     // Values from DB
     $nkz = $row[ 'nkz' ];
     $id = $row[ 'id' ];
     $entryCount = $row[ 'cnt' ];
     $maxForceInactive = $row['max_force_inactive'];
     $minExpirationDate = $row['min_expiration_date'];
-
+    $reason = $row['reason'];
     // values from GroupWise
     $users = Users("name=$nkz");
     $userCount = $users->resultInfo->outOf;
@@ -292,12 +300,12 @@ function refreshLockingStatusFromGroupWise($db)
     //print_r($row);
 
     // event handlers ...	
-    $handleUserFound = function($u) use ($db, $nkz, $id, $entryCount, $userCount, $maxForceInactive, $minExpirationDate) {
-      refreshLatestEntryFromGroupWise($id, $nkz, $u, $db, $entryCount, $userCount, $maxForceInactive, $minExpirationDate);
+    $handleUserFound = function($u) use ($db, $nkz, $id, $entryCount, $userCount, $maxForceInactive, $minExpirationDate, $reason) {
+      refreshLatestEntryFromGroupWise($id, $nkz, $u, $db, $entryCount, $userCount, $maxForceInactive, $minExpirationDate, $reason);
     };
 
-    $handleUserMissing = function($u) use ($db, $nkz, $id, $entryCount, $userCount, $maxForceInactive, $minExpirationDate) {
-      refreshLatestEntryFromGroupWise($id, $nkz, null, $db, $entryCount, $userCount, $maxForceInactive, $minExpirationDate);
+    $handleUserMissing = function($u) use ($db, $nkz, $id, $entryCount, $userCount, $maxForceInactive, $minExpirationDate, $reason) {
+      refreshLatestEntryFromGroupWise($id, $nkz, null, $db, $entryCount, $userCount, $maxForceInactive, $minExpirationDate, $reason);
     };
 
     // ... and their application
