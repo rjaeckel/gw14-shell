@@ -125,6 +125,7 @@ function accountExpiresAt($u, $db, $reason, $newExpirationDate, $logOperation, $
   $update->expirationDate = $newExpirationDate->getTimestamp() * 1000;
   if ($newExpirationDate < $today) {
     $update->forceInactive = true;
+    $update->visibility = "NONE";
   } else {
     $update->forceInactive = false;
   }
@@ -206,8 +207,16 @@ function unexpireAccount($u, $db, $reason)
  */
 function refreshLatestEntryFromGroupWise($id, $nkz, $u, $db, $entryCount, $userCount, $maxForceInactive, $minExpirationDate, $reason)
 {
-  $noise = "       "; // will be filled with "[NOISE]" to ease suppressing redundant information in cronjobs
+  $today = date("Y-m-d");
+
+  $no_noise = "       "; // will be filled with "[NOISE]" to ease suppressing redundant information in cronjobs
+  $no_date =  "____-__-__";
+  $noise = $no_noise;
   if (is_null($u)) {
+    $visibility = "NONE";
+    $directoryId = "UNKNOWN";
+    $ldapDn = "UNKNONW";
+    $loginDisabled = true;
     $fullname = "UNKNOWN"; // Nutzer wurde im GroupWise gelöscht, umbenannt oder existierte noch nie
     $expirationDateTime = null;
     $forceInactive = 2; // Mailbox gelöscht -> für Anzeige im Adminportal!
@@ -219,6 +228,7 @@ function refreshLatestEntryFromGroupWise($id, $nkz, $u, $db, $entryCount, $userC
     };
   } else {
     /* @var $u iUser|apiResult */
+    $visibility = $u('visibility',''); // NONE, POST_OFFICE, SYSTEM, DOMAIN
     $lastname = $u('surname', '');
     $firstname = $u('givenName', ''); // funktionale Accounts haben keinen Vornamen
     $fullname = trim("$firstname $lastname");
@@ -234,20 +244,40 @@ function refreshLatestEntryFromGroupWise($id, $nkz, $u, $db, $entryCount, $userC
       $expireDisplay = date("Y-m-d", round($maybeExpirationDate / 1000));
     } else {
       $expirationDateTime = null;
-      $expireDisplay = "....-..-..";
+      $expireDisplay = $no_date;
     }
+    $loginDisabled = $u('loginDisabled', null) | false;
     $forceInactive = $u('forceInactive', null) | 0;
+    $forceInactiveTimeValue = $u('forceInactiveTime', null) | 0;
+    $forceInactiveTime = $no_date;
+    if ($forceInactiveTimeValue > 0) {
+      $forceInactiveTime = date("Y-m-d", $forceInactiveTimeValue);
+    } 
+    $directoryId = $u('directoryId', null) | "NONE";
+    $ldapDn = $u('ldapDn', null) | "UNKNOWN";
     if ($forceInactive == $maxForceInactive) {
         $noise = "[NOISE]";
     };
+    // gesperrte Accounts sollten unsichtbar sein!
+    if ($forceInactive != 0 and $visibility != 'NONE') { 
+        $noise = $no_noise;
+    }
     if ($forceInactive == 0) {
-      $inactiveDisplay = "active";
+      if (!is_null($expirationDateTime) and $today > $expireDisplay) {
+	// abgelaufene aber noch aktive Konten sind unerwünscht!
+        $inactiveDisplay = "ACTIVE";
+        $noise = $no_noise;
+      } else {
+        $inactiveDisplay = "active";
+      }
     } elseif ($forceInactive == 1) {
       $inactiveDisplay = "locked";
     } else {
       $inactiveDisplay = "unknwn";
     }
-    $mailboxStatus = "$inactiveDisplay exp=$expireDisplay";
+    $prettyVisibility = $visibility; // sprintf("%-11s", $visibility);
+    $prettyDirectory = ""; // "dir=$directoryId, ldapDn=$ldapDn";
+    $mailboxStatus = "$inactiveDisplay forceInactiveTime=$forceInactiveTime loginDisabled=$loginDisabled exp=$expireDisplay visibility=$prettyVisibility $prettyDirectory";
   }
 
   //$db_stats = "$mailboxSize (id=$id, count=$entryCount)";
