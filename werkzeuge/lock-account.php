@@ -75,8 +75,8 @@ function accountExpiredYesterday($u, $db, $reason)
     $u->url('PUT', $update)->header('http/1.1');
 
     //print_r( $u) ;
-    $insert_stmt = $db->prepare("INSERT INTO account_locking_reasons (nkz, reason, operation, inserted_by) values (?, ?, ?, ?)");
-    $insert_stmt->execute(array( $nkz, $reason, 'locked', 'gwadmin' ));
+    $insert_stmt = $db->prepare("INSERT INTO account_locking_reasons (nkz, reason, operation, inserted_by, force_inactive) values (?, ?, ?, ?, ?)");
+    $insert_stmt->execute(array( $nkz, $reason, 'locked', 'gwadmin', 1 ));
     //mlu\groupwise\wadl\obj::setVars(array('id'=>$id))->object()->url('PUT',$update);
   }
 }
@@ -152,13 +152,17 @@ function watchAccount($nkz, $db, $reason)
   if (!$hasEntry) {
     $stmt = $db->prepare("INSERT INTO account_locking_reasons (nkz, reason, operation, inserted_by) values (?, ?, ?, ?)");
     $stmt->execute(array( $nkz, $reason, 'watch', 'gwadmin' ));
-  } 
+    printf("$nkz in Tabelle account_locking_reasons aufgenommen" . PHP_EOL);
+  } else {
+    printf("$nkz war bereits aufgenommen" . PHP_EOL);
+  }
 }
 
 
 function unexpireAccount($u, $db, $reason)
 {
 
+  $nkz = $u->name;
   expiration::showAccount($u);
 
   /** @var mlu\groupwise\xsd\restDeliverable $update */
@@ -360,6 +364,9 @@ USAGE
   if ($op == "refresh") {
     refreshLockingStatusFromGroupWise($db);
     exit();
+  } elseif ($op == "watch") {
+    // dont shift array $argv!
+    $reason = "watch";
   } elseif ($op == "show") {
     $reason = "info";
   } else {
@@ -427,9 +434,16 @@ USAGE
   } elseif ($op == 'exmat_this_spring') {
   } elseif ($op == 'exmat_this_autumn ') {
   } elseif ($op == 'watch') {
-    foreach ($argv as $i => $nkz) {
+    //printf("watching $argv..." . PHP_EOL);
+    // var_dump($argv);
+    $count = 0;
+    foreach ($argv as $nkz) {
       watchAccount($nkz, $db, $reason);
       print "nkz = $nkz" . PHP_EOL;
+      $count++;
+    }
+    if ($count == 0) {
+      printf("WARNING: keine Nutzerkennzeichen zur Beobachtung aufgenommen!" . PHP_EOL);
     }
     exit(0);
   } elseif ($op == 'unexpire') {
