@@ -55,6 +55,7 @@ function accountExpiredYesterday($u, $db, $reason)
   $update = new stdClass(); // (object)null
   $update->expirationDate = $yesterday->getTimestamp() * 1000;
   $update->forceInactive = true;
+  $update->visibility = 'NONE';
 
   // echo $u->url().PHP_EOL;
 
