@@ -171,7 +171,7 @@ function importUsers($tempPOId) {
         @showFailed=>true,
         @showSkipped=>false,
         @showSucceeded=>false,
-	@filter=>'(&(objectClass=user)(postOfficeBox=*@*)(!(postOfficeBox=*@informatik*))(memberof:1.2.840.113556.1.4.1941:=CN=MLU E-Mail zentral,OU=MLU Global,OU=Uni-Halle,DC=xd,DC=uni-halle,DC=de))'
+	@filter=>'(&(objectClass=user)(comment=active)(postOfficeBox=*@*)(!(postOfficeBox=*@informatik*))(memberof:0.2.840.113556.1.4.1941:=CN=MLU E-Mail zentral,OU=MLU Global,OU=Uni-Halle,DC=xd,DC=uni-halle,DC=de))'
 	//@filter=>'(&(objectClass=user)(memberof:1.2.840.113556.1.4.1941:=CN=MLU E-Mail zentral,OU=MLU Global,OU=Uni-Halle,DC=xd,DC=uni-halle,DC=de))'
     );
 // find new users in ldap using config above
