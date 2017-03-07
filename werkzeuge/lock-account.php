@@ -148,15 +148,25 @@ function accountExpiresAt($u, $db, $reason, $newExpirationDate, $logOperation, $
   }
 }
 
-function watchAccount($nkz, $db, $reason)
+/**
+ * Liefert TRUE, wenn der Eintrag eingefügt wurde, sonst FALSE.
+ * @return bool
+ */
+function watchAccount($nkz, $db, $reason, $verbose=true)
 {
   $hasEntry = hasLockingReason($db, $nkz);
   if (!$hasEntry) {
     $stmt = $db->prepare("INSERT INTO account_locking_reasons (nkz, reason, operation, inserted_by) values (?, ?, ?, ?)");
     $stmt->execute(array( $nkz, $reason, 'watch', 'gwadmin' ));
-    printf("$nkz in Tabelle account_locking_reasons aufgenommen" . PHP_EOL);
+    if (true or $verbose) {
+        printf("$nkz in Tabelle account_locking_reasons aufgenommen" . PHP_EOL);
+    }
+    return true;
   } else {
-    printf("$nkz war bereits aufgenommen" . PHP_EOL);
+    if ($verbose) {
+        printf("$nkz war bereits aufgenommen" . PHP_EOL);
+    }
+    return false;
   }
 }
 
@@ -190,6 +200,67 @@ function unexpireAccount($u, $db, $reason)
   } else {
     printf("Account was not expired at all" . PHP_EOL);
   }
+}
+
+/**
+ * Anlässlich Redmine #710
+ */
+function importLockedUsersFromGroupwise($db)
+{
+    $items_per_page = 500;
+    // values from GroupWise
+    //$users = Users("loginDisabled=true");
+    $users = Users("forceInactive=true&count=$items_per_page");
+    $userCount = 0;
+    $verbose = false;
+    $reason = "Import according to Redmine #710";
+    $handleUser = function($u) use ($db, $verbose, $reason) {
+        /*
+        User: {"@type":"user","@url":"\/gwadmin-service\/domains\/gwdoms\/postoffices\/pos07\/users\/abcde",
+        "guid":"CCFB4008-14C9-0000-9867-776461663435","id":"USER.gwdoms.pos07.abcde","lastModifiedBy":"admin.MLU-Groupwise","lastModifiedOp":"MODIFY",
+        "name":"abcde","timeCreated":1422266096000,"timeLastMod":1488728300000,"internetDomainName":{"inherited":false,"value":"student.uni-halle.de","exclusive":true},
+        "directoryId":"gwldap","domainName":"gwdoms","forceInactive":true,"forceInactiveTime":1480072903,"ldapDn":"uid=abcde,ou=mail,o=mlu,c=de",
+        "ldapId":"36353535336132382D646462332D313033332D393339352D313363343365376639376263",
+        "moveStatus":{"action":"UDB_MOVE_USER_FINISHED","attempt":0,"beginTime":1422886356000,"count":24,"domainName":"gwdoms","endTime":1422886356000,"errno":0,
+        "grandTotal":24,"lastAction":"UDB_MOVE_USER_FINISHED","originalDomainName":"gwdoms","originalFileId":"93l","originalGuid":"CCFB4008-14C9-0000-9867-776461663435",
+        "originalName":"abcde","originalPostOfficeName":"pos08","postOfficeName":"pos08","subTotal":24},
+        "postOfficeName":"pos07","preferredEmailAddress":"max.mustermann@student.uni-halle.de",
+        "preferredEmailId":"max.mustermann","syncNotFoundTime":1480072903,"visibility":"NONE",
+        "expirationDate":1479942000000,"fileId":"93l",
+        "givenName":"Max","lastClientLoginTime":1424698648000,"mailboxLicenseType":"UNKNOWN",
+        "mailboxSizeMb":76,"networkId":"abcde","surname":"Mustermann"}
+        */
+        $nkz = $u->name;
+        if (isset($u->givenName)) {
+            $firstname = $u->givenName;
+            $lastname = $u->surname;
+            $fullname = "$firstname $lastname";
+        } else {
+            $lastname = $u->surname;
+            $fullname = "$lastname";
+        }
+	$was_new = watchAccount($nkz, $db, $reason, $verbose);
+        if (false) {
+            printf("User: $nkz $fullname" . PHP_EOL);
+        }
+    };
+    while (true) {
+        if (!isset($users->resultInfo)) {
+            break;
+        }
+        $resultInfo = $users->resultInfo;
+        if (isset($resultInfo->outOf)) {
+            $userCount += $users->resultInfo->outOf;
+            $users->each($handleUser);
+            break;
+        } else {
+            $userCount += $items_per_page;
+            printf("Locked in GW: $userCount" . PHP_EOL);
+            $users->each($handleUser);
+            $users = $users->nextListPage();
+        }
+    }
+    printf("Locked in GW: $userCount" . PHP_EOL);
 }
 
 /**
@@ -309,6 +380,9 @@ function hasLockingReason($db, $nkz)
 
 function refreshLockingStatusFromGroupWise($db)
 {
+  // Redmine #710: übernehme etwaige direkt im GW gesperrte Nutzer
+  importLockedUsersFromGroupwise($db);
+
   printf("[NOISE] Uebernehme Sperr- und Ablaufstatus (forceInactive, expirationDate) aus GroupWise ... \n");
   $sql =  <<<EOD
 select * from
@@ -319,6 +393,7 @@ join account_locking_reasons r on r.id = temp.max_id
 order by r.id desc
 EOD;
 
+  // Aktualisiere die bereits bekannten.
   foreach ($db->query($sql) as $row) {
     // Values from DB
     $nkz = $row[ 'nkz' ];
@@ -502,8 +577,10 @@ USAGE
 
       $users->each($f);
 
+    } elseif ($foundCount == 0) {
+      fwrite(STDERR, sprintf("Search for user <%s> did not succeed: nothing found", $nkz, $foundCount));
     } else {
-      fwrite(STDERR, sprintf("Search for user <%s> did not succeed: found %d", $nkz, $foundCount));
+      fwrite(STDERR, sprintf("Search for user <%s> did not succeed: found %d possible entries", $nkz, $foundCount));
     }
     /*
     // explizites ansprechen des http-payloads ohne fehlerprüfung und wrapping
