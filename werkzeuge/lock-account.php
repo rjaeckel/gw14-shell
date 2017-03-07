@@ -205,15 +205,20 @@ function unexpireAccount($u, $db, $reason)
 /**
  * Anlässlich Redmine #710
  */
-function importLockedUsersFromGroupwise($db)
+function importLockedUsersFromGroupwise($db, $flavour = 0)
 {
     $items_per_page = 500;
-    // values from GroupWise
-    //$users = Users("loginDisabled=true");
-    $users = Users("forceInactive=true&count=$items_per_page");
-    $userCount = 0;
     $verbose = false;
-    $reason = "Import according to Redmine #710";
+    // values from GroupWise
+    if ($flavour == 1) {
+       $users = Users("loginDisabled=true");
+    } elseif ($flavour == 2) {
+       $users = Users("filter=expirationDate+gt+1439546400000");
+    } else {
+       $users = Users("forceInactive=true&count=$items_per_page");
+    }
+    $userCount = 0;
+    $reason = "Import according to Redmine #710 - Flavour $flavour";
     $handleUser = function($u) use ($db, $verbose, $reason) {
         /*
         User: {"@type":"user","@url":"\/gwadmin-service\/domains\/gwdoms\/postoffices\/pos07\/users\/abcde",
@@ -231,14 +236,16 @@ function importLockedUsersFromGroupwise($db)
         "mailboxSizeMb":76,"networkId":"abcde","surname":"Mustermann"}
         */
         $nkz = $u->name;
+        $name_parts = array();
         if (isset($u->givenName)) {
             $firstname = $u->givenName;
-            $lastname = $u->surname;
-            $fullname = "$firstname $lastname";
-        } else {
-            $lastname = $u->surname;
-            $fullname = "$lastname";
+            array_push($name_parts, $firstname);
         }
+        if (isset($u->surname)) {
+            $lastname = $u->surname;
+            array_push($name_parts, $lastname);
+        }
+        $fullname = implode(" ", $name_parts);
 	$was_new = watchAccount($nkz, $db, $reason, $verbose);
         if (false) {
             printf("User: $nkz $fullname" . PHP_EOL);
@@ -381,7 +388,9 @@ function hasLockingReason($db, $nkz)
 function refreshLockingStatusFromGroupWise($db)
 {
   // Redmine #710: übernehme etwaige direkt im GW gesperrte Nutzer
-  importLockedUsersFromGroupwise($db);
+  importLockedUsersFromGroupwise($db, 0);
+  importLockedUsersFromGroupwise($db, 1);
+  importLockedUsersFromGroupwise($db, 2);
 
   printf("[NOISE] Uebernehme Sperr- und Ablaufstatus (forceInactive, expirationDate) aus GroupWise ... \n");
   $sql =  <<<EOD
