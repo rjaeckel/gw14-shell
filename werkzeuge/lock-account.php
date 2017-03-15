@@ -211,9 +211,9 @@ function importLockedUsersFromGroupwise($db, $flavour = 0)
     $verbose = false;
     // values from GroupWise
     if ($flavour == 1) {
-       $users = Users("loginDisabled=true");
+       $users = Users("loginDisabled=true"); // &count=$items_per_page
     } elseif ($flavour == 2) {
-       $users = Users("filter=expirationDate+gt+1439546400000");
+       $users = Users("filter=expirationDate+gt+1439546400000"); // &count=$items_per_page
     } else {
        $users = Users("forceInactive=true&count=$items_per_page");
     }
@@ -221,19 +221,56 @@ function importLockedUsersFromGroupwise($db, $flavour = 0)
     $reason = "Import according to Redmine #710 - Flavour $flavour";
     $handleUser = function($u) use ($db, $verbose, $reason) {
         /*
-        User: {"@type":"user","@url":"\/gwadmin-service\/domains\/gwdoms\/postoffices\/pos07\/users\/abcde",
-        "guid":"CCFB4008-14C9-0000-9867-776461663435","id":"USER.gwdoms.pos07.abcde","lastModifiedBy":"admin.MLU-Groupwise","lastModifiedOp":"MODIFY",
-        "name":"abcde","timeCreated":1422266096000,"timeLastMod":1488728300000,"internetDomainName":{"inherited":false,"value":"student.uni-halle.de","exclusive":true},
-        "directoryId":"gwldap","domainName":"gwdoms","forceInactive":true,"forceInactiveTime":1480072903,"ldapDn":"uid=abcde,ou=mail,o=mlu,c=de",
+        User: {
+	"@type":"user",
+	"@url":"\/gwadmin-service\/domains\/gwdoms\/postoffices\/pos07\/users\/abcde",
+        "guid":"CCFB4008-14C9-0000-9867-776461663435",
+	"id":"USER.gwdoms.pos07.abcde",
+	"lastModifiedBy":"admin.MLU-Groupwise",
+	"lastModifiedOp":"MODIFY",
+        "name":"abcde",
+	"timeCreated":1422266096000,
+	"timeLastMod":1488728300000,
+	"internetDomainName":{
+		"inherited":false,
+		"value":"student.uni-halle.de",
+		"exclusive":true},
+        "directoryId":"gwldap",
+	"domainName":"gwdoms",
+	"forceInactive":true,
+	"forceInactiveTime":1480072903,
+	"ldapDn":"uid=abcde,ou=mail,o=mlu,c=de",
         "ldapId":"36353535336132382D646462332D313033332D393339352D313363343365376639376263",
-        "moveStatus":{"action":"UDB_MOVE_USER_FINISHED","attempt":0,"beginTime":1422886356000,"count":24,"domainName":"gwdoms","endTime":1422886356000,"errno":0,
-        "grandTotal":24,"lastAction":"UDB_MOVE_USER_FINISHED","originalDomainName":"gwdoms","originalFileId":"93l","originalGuid":"CCFB4008-14C9-0000-9867-776461663435",
-        "originalName":"abcde","originalPostOfficeName":"pos08","postOfficeName":"pos08","subTotal":24},
-        "postOfficeName":"pos07","preferredEmailAddress":"max.mustermann@student.uni-halle.de",
-        "preferredEmailId":"max.mustermann","syncNotFoundTime":1480072903,"visibility":"NONE",
-        "expirationDate":1479942000000,"fileId":"93l",
-        "givenName":"Max","lastClientLoginTime":1424698648000,"mailboxLicenseType":"UNKNOWN",
-        "mailboxSizeMb":76,"networkId":"abcde","surname":"Mustermann"}
+        "moveStatus":{
+		"action":"UDB_MOVE_USER_FINISHED",
+		"attempt":0,
+		"beginTime":1422886356000,
+		"count":24,
+		"domainName":"gwdoms",
+		"endTime":1422886356000,
+		"errno":0,
+       	 	"grandTotal":24,
+		"lastAction":"UDB_MOVE_USER_FINISHED",
+		"originalDomainName":"gwdoms",
+		"originalFileId":"93l",
+		"originalGuid":"CCFB4008-14C9-0000-9867-776461663435",
+      		"originalName":"abcde",
+		"originalPostOfficeName":"pos08",
+		"postOfficeName":"pos08",
+		"subTotal":24},
+        "postOfficeName":"pos07",
+	"preferredEmailAddress":"max.mustermann@student.uni-halle.de",
+        "preferredEmailId":"max.mustermann",
+	"syncNotFoundTime":1480072903,
+	"visibility":"NONE",
+        "expirationDate":1479942000000,
+	"fileId":"93l",
+        "givenName":"Max",
+	"lastClientLoginTime":1424698648000,
+	"mailboxLicenseType":"UNKNOWN",
+        "mailboxSizeMb":76,
+	"networkId":"abcde",
+	"surname":"Mustermann"}
         */
         $nkz = $u->name;
         $name_parts = array();
@@ -291,27 +328,37 @@ function refreshLatestEntryFromGroupWise($id, $nkz, $u, $db, $entryCount, $userC
   $no_noise = "       "; // will be filled with "[NOISE]" to ease suppressing redundant information in cronjobs
   $no_date =  "____-__-__";
   $noise = $no_noise;
+  $UNKNOWN = "UNKNOWN";
   if (is_null($u)) {
     $visibility = "NONE";
-    $directoryId = "UNKNOWN";
-    $ldapDn = "UNKNONW";
+    $directoryId = null;
+    $ldapDn = null;
     $loginDisabled = true;
-    $fullname = "UNKNOWN"; // Nutzer wurde im GroupWise gelöscht, umbenannt oder existierte noch nie
+    $fullname = $UNKNOWN; // Nutzer wurde im GroupWise gelöscht, umbenannt oder existierte noch nie
     $expirationDateTime = null;
     $forceInactive = 2; // Mailbox gelöscht -> für Anzeige im Adminportal!
     // fwrite(STDERR, sprintf("Search for user <%s> did not succeed: found %d" . PHP_EOL, $nkz, $foundCount));
     $mailboxStatus = "   mailbox deleted   ";
-    $mailboxSize = " none";
+    $mailboxSize = " none "; // -1 = unbekannt bzw. -2 = undefiniert
+    $mailboxSizeMb = -2; // -1 = unbekannt bzw. -2 = undefiniert
+    $mail = null;
+    $firstname = null;
+    $lastname = null;
     if ($forceInactive == $maxForceInactive) {
         $noise = "[NOISE]";
     };
+    $gwid = null;
+    $name = null;
+    $postoffice = null;
+    $gw_domain = null;
   } else {
     /* @var $u iUser|apiResult */
     $visibility = $u('visibility',''); // NONE, POST_OFFICE, SYSTEM, DOMAIN
     $lastname = $u('surname', '');
     $firstname = $u('givenName', ''); // funktionale Accounts haben keinen Vornamen
     $fullname = trim("$firstname $lastname");
-    $mailboxSizeMb = $u('$mailboxSizeMb', null); // scheinbar nicht immer vorhanden?
+    $mailboxSizeMb = $u('mailboxSizeMb', null); // scheinbar nicht immer vorhanden?
+    $mail = $u('preferredEmailAddress', '');
     if (is_null($mailboxSizeMb)) {
       $mailboxSize = "undef";
     } else {
@@ -337,6 +384,10 @@ function refreshLatestEntryFromGroupWise($id, $nkz, $u, $db, $entryCount, $userC
     if ($forceInactive == $maxForceInactive) {
         $noise = "[NOISE]";
     };
+    $gwid = $u->id;
+    $name = $u->name;
+    $postoffice = $u->postOfficeName;
+    $gw_domain = $u->domainName;
     // gesperrte Accounts sollten unsichtbar sein!
     if ($forceInactive != 0 and $visibility != 'NONE') { 
         $noise = $no_noise;
@@ -361,9 +412,27 @@ function refreshLatestEntryFromGroupWise($id, $nkz, $u, $db, $entryCount, $userC
 
   //$db_stats = "$mailboxSize (id=$id, count=$entryCount)";
   $db_stats = "";
-  printf("[$nkz: $mailboxStatus] $noise $fullname ($reason) $db_stats" . PHP_EOL);
-  $stmt = $db->prepare("UPDATE `account_locking_reasons` SET `force_inactive` = ?, `expiration_date`=? WHERE `nkz`=?");
-  $success = $stmt->execute(array( $forceInactive, $expirationDateTime, $nkz ));
+  printf("[$nkz.$postoffice.$gw_domain]: $mailboxStatus] $noise $fullname ($reason) $db_stats" . PHP_EOL);
+  $sql = <<<EOD
+  UPDATE `account_locking_reasons`
+     SET `force_inactive` = ?, 
+         `expiration_date` = ?,
+          gw_domain = ?, postoffice = ?, gwid = ?,
+          mailbox_size = ?, mail = ?,
+          directoryid = ?, ldapdn = ?,
+	  firstname = ?,  lastname = ?
+   WHERE `nkz`=?
+EOD;
+  $stmt = $db->prepare($sql);
+  $success = $stmt->execute(array(
+	$forceInactive,
+	$expirationDateTime,
+	$gw_domain, $postoffice, $gwid,
+	$mailboxSizeMb, $mail,
+	$directoryId, $ldapDn,
+	$firstname, $lastname,
+	$nkz
+	));
   #var_dump($success);
 }
 
