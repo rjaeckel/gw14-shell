@@ -350,15 +350,18 @@ if(cfg::$move||cfg::$update) {
             // ldap-search
 	    #$searchKey = $user_ldapDn;
             try {
-                $ldapRes = common::searchLDAP($searchKey);
+                $ldapRes = common::searchLDAP($searchKey); // sucht implizit in "system/directories/$directoryId/search"
 		#print_r($ldapRes());
                 $ldapMail = getMailFromResult($ldapRes); // strtolower($ldapRes->postOfficeBox);
                 $mailParts = explode('@', $ldapMail);
                 $prefMailId = array_shift($mailParts);
                 $internetDomain = array_shift($mailParts);
             } catch (Exception $e) {
-                common::logWrite("LDAP Search 2 failed for User <{$user->id}> (s: $searchKey): {$e->getMessage()}",STDERR,"\n");
-                common::logWrite(" - - Trace: ".$e->getTraceAsString(),STDERR,"\n");
+                common::logWrite("LDAP Search 2 failed for User <{$user->id}> (s: $searchKey): {$e->getMessage()}. dn=$user_ldapDn",STDERR,"\n");
+                $verbose = false;
+                if ($verbose) {
+                   common::logWrite(" - - Trace: ".$e->getTraceAsString(),STDERR,"\n");
+                }
                 // break each-function here
                 return;
             }
