@@ -357,7 +357,10 @@ if(cfg::$move||cfg::$update) {
                 $prefMailId = array_shift($mailParts);
                 $internetDomain = array_shift($mailParts);
             } catch (Exception $e) {
-                common::logWrite("LDAP Search 2 failed for User <{$user->id}> (s: $searchKey): {$e->getMessage()}. dn=$user_ldapDn",STDERR,"\n");
+                $is_suspended_user = stristr($user_ldapDn, "suspended");
+		if ($is_suspended_user === false) {
+                    common::logWrite("LDAP Search 2 failed for User <{$user->id}> (s: $searchKey): {$e->getMessage()}. dn=$user_ldapDn",STDERR,"\n");
+                }
                 $verbose = false;
                 if ($verbose) {
                    common::logWrite(" - - Trace: ".$e->getTraceAsString(),STDERR,"\n");
