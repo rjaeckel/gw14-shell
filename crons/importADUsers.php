@@ -419,13 +419,25 @@ if(cfg::$move||cfg::$update) {
                                     )
                                 )->reload();
 
-                                $givenName=$ldapRes(@givenName,'');
-				$surname=$ldapRes(@surname,'');
-                                $title=$ldapRes(@title,'');
-                                if($title)$title.=' ';
-                                $internetDomain=$user->internetDomainName->value;
-                                $preferredEmailId=$user->preferredEmailId;
-                                $uid=$user->name;
+                                $givenName = $ldapRes(@givenName,'');
+				$surname = $ldapRes(@surname,'');
+                                $title = $ldapRes(@title,'');
+                                if ($title) {
+                                    $title .= ' ';
+                                }
+                                $internetDomain = $user->internetDomainName->value;
+                                $preferredEmailId = $user->preferredEmailId;
+                                $uid = $user->name;
+                                $is_student = ($internetDomain == 'student.uni-halle.de');
+                                if ($is_student) {
+                                    $gwclient = ""; // Redmine #635
+                                } else {
+                                    $gwclient = <<<GWCLIENT
+Sollten Sie statt des GroupWise-Clients einen anderen lokalen Mailclient nutzen (wie Outlook, Thunderbird, Apple Mail etc.), so müssen Sie dort in Ihrem Mailkonto die Absenderadresse auf die neue Adresse umstellen.
+
+GWCLIENT;
+                                }
+
                                 $mail=<<<EMAIL
 Sehr geehrte*r $title$givenName $surname,
 
@@ -437,8 +449,7 @@ Nutzen Sie bitte diese Zeit, um alle Ihre Korrespondenten über die neue Adresse
 
 Bitte überprüfen Sie ggf. auch Ihre Signatur und Abwesenheitsnachricht.
 
-Sollten Sie statt des GroupWise-Clients einen anderen lokalen Mailclient nutzen (wie Outlook, Thunderbird, Apple Mail etc.), so müssen Sie dort in Ihrem Mailkonto die Absenderadresse auf die neue Adresse umstellen.
-
+$gwclient
 Bei Fragen oder Problemen antworten Sie einfach auf diese E-Mail.
 
 Mit freundlichen Grüßen
