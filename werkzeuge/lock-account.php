@@ -361,6 +361,7 @@ function refreshLatestEntryFromGroupWise($id, $nkz, $u, $db, $entryCount, $userC
     $name = null;
     $postoffice = null;
     $gw_domain = null;
+    $mailboxLicenseType = null;
   } else {
     /* @var $u iUser|apiResult */
     $visibility = $u('visibility',''); // NONE, POST_OFFICE, SYSTEM, DOMAIN
