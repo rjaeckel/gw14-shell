@@ -209,16 +209,26 @@ function importLockedUsersFromGroupwise($db, $flavour = 0)
 {
     $items_per_page = 500;
     $verbose = false;
+    $reason = "Import according to Redmine #710 - Flavour $flavour";
     // values from GroupWise
     if ($flavour == 1) {
        $users = Users("loginDisabled=true"); // &count=$items_per_page
     } elseif ($flavour == 2) {
        $users = Users("filter=expirationDate+gt+1439546400000"); // &count=$items_per_page
+    } elseif ($flavour == 3) {
+       $reason = "Import according to Redmine #807 - Flavour $flavour";
+       $users = Users("mailboxLicenseType=UNKNOWN"); // &count=$items_per_page
+    } elseif ($flavour == 4) {
+       $reason = "Import according to Redmine #807 - Flavour $flavour";
+       $users = Users("mailboxLicenseType=FULL"); // &count=$items_per_page
+       // https://gwdom0.itz.uni-halle.de:9710/gwadmin-service/list/USER?directoryId=xd&mailboxLicenseType=LIMITED&attrs=mailboxLizenseType,preferredEmailAddress,directoryId
+       // https://gwdom0.itz.uni-halle.de:9710/gwadmin-service/list/USER?mailboxLicenseType=LIMITED&attrs=mailboxLizenseType,preferredEmailAddress,directoryId
+       // https://gwdom0.itz.uni-halle.de:9710/gwadmin-service/list/USER?mailboxLicenseType=UNKNOWN&attrs=mailboxLizenseType,preferredEmailAddress,directoryId
+       // https://gwdom0.itz.uni-halle.de:9710/gwadmin-service/list/USER?mailboxLicenseType=FULL&attrs=mailboxLizenseType,preferredEmailAddress,directoryId
     } else {
        $users = Users("forceInactive=true&count=$items_per_page");
     }
     $userCount = 0;
-    $reason = "Import according to Redmine #710 - Flavour $flavour";
     $handleUser = function($u) use ($db, $verbose, $reason) {
         /*
         User: {
@@ -359,6 +369,7 @@ function refreshLatestEntryFromGroupWise($id, $nkz, $u, $db, $entryCount, $userC
     $fullname = trim("$firstname $lastname");
     $mailboxSizeMb = $u('mailboxSizeMb', null); // scheinbar nicht immer vorhanden?
     $mail = $u('preferredEmailAddress', '');
+    $mailboxLicenseType = $u('mailboxLicenseType', 'NONE');
     if (is_null($mailboxSizeMb)) {
       $mailboxSize = "undef";
     } else {
@@ -420,7 +431,8 @@ function refreshLatestEntryFromGroupWise($id, $nkz, $u, $db, $entryCount, $userC
           gw_domain = ?, postoffice = ?, gwid = ?,
           mailbox_size = ?, mail = ?,
           directoryid = ?, ldapdn = ?,
-	  firstname = ?,  lastname = ?
+	  firstname = ?,  lastname = ?,
+          mailbox_license_type = ?
    WHERE `nkz`=?
 EOD;
   $stmt = $db->prepare($sql);
@@ -431,6 +443,7 @@ EOD;
 	$mailboxSizeMb, $mail,
 	$directoryId, $ldapDn,
 	$firstname, $lastname,
+        $mailboxLicenseType,
 	$nkz
 	));
   #var_dump($success);
@@ -457,9 +470,11 @@ function hasLockingReason($db, $nkz)
 function refreshLockingStatusFromGroupWise($db)
 {
   // Redmine #710: übernehme etwaige direkt im GW gesperrte Nutzer
-  importLockedUsersFromGroupwise($db, 0);
-  importLockedUsersFromGroupwise($db, 1);
-  importLockedUsersFromGroupwise($db, 2);
+  importLockedUsersFromGroupwise($db, 0); // Redmine #710
+  importLockedUsersFromGroupwise($db, 1); // Redmine #710
+  importLockedUsersFromGroupwise($db, 2); // Redmine #710
+  importLockedUsersFromGroupwise($db, 3); // Redmine #807
+  importLockedUsersFromGroupwise($db, 4); // Redmine #807
 
   printf("[NOISE] Uebernehme Sperr- und Ablaufstatus (forceInactive, expirationDate) aus GroupWise ... \n");
   $sql =  <<<EOD
