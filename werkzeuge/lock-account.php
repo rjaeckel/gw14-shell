@@ -148,6 +148,32 @@ function accountExpiresAt($u, $db, $reason, $newExpirationDate, $logOperation, $
   }
 }
 
+
+/**
+ * Liefert TRUE, wenn der Eintrag eingefügt wurde, sonst FALSE.
+ * @return bool
+ */
+function importAccountFromGroupwise($nkz, $db, $reason, $u, $verbose=true)
+{
+  $hasEntry = hasLockingReason($db, $nkz);
+  if (!$hasEntry) {
+    $mailboxLicenseType = $u('mailboxLicenseType', 'NONE');
+    $postoffice = $u->postOfficeName;
+    $sql = "INSERT INTO account_locking_reasons    (nkz, reason, operation, inserted_by, mailbox_license_type, postoffice)        values (?, ?, ?, ?, ?, ?)";
+    $stmt = $db->prepare($sql);
+    $stmt->execute(array($nkz, $reason, 'watch', 'gwadmin', $mailboxLicenseType, $postoffice));
+    if ($verbose) {
+        printf("$nkz in Tabelle account_locking_reasons aufgenommen" . PHP_EOL);
+    }
+    return true;
+  } else {
+    if ($verbose) {
+        printf("$nkz war bereits aufgenommen" . PHP_EOL);
+    }
+    return false;
+  }
+}
+
 /**
  * Liefert TRUE, wenn der Eintrag eingefügt wurde, sonst FALSE.
  * @return bool
@@ -221,10 +247,13 @@ function importLockedUsersFromGroupwise($db, $flavour = 0)
     } elseif ($flavour == 4) {
        $reason = "Import according to Redmine #807 - Flavour $flavour";
        $users = Users("mailboxLicenseType=FULL"); // &count=$items_per_page
-       // https://gwdom0.itz.uni-halle.de:9710/gwadmin-service/list/USER?directoryId=xd&mailboxLicenseType=LIMITED&attrs=mailboxLizenseType,preferredEmailAddress,directoryId
-       // https://gwdom0.itz.uni-halle.de:9710/gwadmin-service/list/USER?mailboxLicenseType=LIMITED&attrs=mailboxLizenseType,preferredEmailAddress,directoryId
-       // https://gwdom0.itz.uni-halle.de:9710/gwadmin-service/list/USER?mailboxLicenseType=UNKNOWN&attrs=mailboxLizenseType,preferredEmailAddress,directoryId
-       // https://gwdom0.itz.uni-halle.de:9710/gwadmin-service/list/USER?mailboxLicenseType=FULL&attrs=mailboxLizenseType,preferredEmailAddress,directoryId
+    } elseif ($flavour == 5) {
+       $reason = "Import according to Redmine #807 - Flavour $flavour";
+       $users = Users("mailboxLicenseType=LIMITED"); // &count=$items_per_page
+    } elseif (false) {
+       // $reason = "Import according to Redmine #807 - Flavour $flavour";
+       // $users = Users("mailboxLicenseType=LIMITED"); // &count=$items_per_page
+       // https://gwdom0.itz.uni-halle.de:9710/gwadmin-service/list/USER?directoryId=xd&attrs=mailboxLizenseType,preferredEmailAddress,directoryId
     } else {
        $users = Users("forceInactive=true&count=$items_per_page");
     }
@@ -293,7 +322,7 @@ function importLockedUsersFromGroupwise($db, $flavour = 0)
             array_push($name_parts, $lastname);
         }
         $fullname = implode(" ", $name_parts);
-	$was_new = watchAccount($nkz, $db, $reason, $verbose);
+	$was_new = importAccountFromGroupwise($nkz, $db, $reason, $u, $verbose);
         if (false) {
             printf("User: $nkz $fullname" . PHP_EOL);
         }
@@ -470,12 +499,15 @@ function hasLockingReason($db, $nkz)
 
 function refreshLockingStatusFromGroupWise($db)
 {
+  importLockedUsersFromGroupwise($db, 5);
   // Redmine #710: übernehme etwaige direkt im GW gesperrte Nutzer
-  importLockedUsersFromGroupwise($db, 0); // Redmine #710
-  importLockedUsersFromGroupwise($db, 1); // Redmine #710
-  importLockedUsersFromGroupwise($db, 2); // Redmine #710
-  importLockedUsersFromGroupwise($db, 3); // Redmine #807
-  importLockedUsersFromGroupwise($db, 4); // Redmine #807
+  importLockedUsersFromGroupwise($db, 0);
+  importLockedUsersFromGroupwise($db, 1);
+  importLockedUsersFromGroupwise($db, 2);
+
+  // Redmine #807: Mailbox-Lizenz
+  importLockedUsersFromGroupwise($db, 3);
+  importLockedUsersFromGroupwise($db, 4);
 
   printf("[NOISE] Uebernehme Sperr- und Ablaufstatus (forceInactive, expirationDate) aus GroupWise ... \n");
   $sql =  <<<EOD
