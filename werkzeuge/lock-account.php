@@ -32,6 +32,7 @@
  */
 
 //define('__devmode',true);
+//define('__devRequests',true);
 
 use \mlu\common;
 use \mlu\groupwise\wadl\system; // unter wadl liegen die abtrahierten methoden
@@ -180,6 +181,20 @@ function importAccountFromGroupwise($nkz, $db, $reason, $u, $verbose=true)
  */
 function watchAccount($nkz, $db, $reason, $verbose=true)
 {
+  if (false) {
+    $handleUser = function($u) use ($db, $nkz, $verbose) {
+      //var_dump($u);
+      $directoryId = "...";
+      $ldapDn = "..."; 
+      $directoryId = $u('directoryId', null) | "NONE";
+      $ldapDn = $u('ldapDn', null) | "NONE";
+      $directoryId= $u->directoryId; //, null) | "NONE";
+      $ldapDn = $u->ldapDn; //, null) | "NONE";
+      printf("DLM: $nkz: directoryId = $directoryId, ldapDn = $ldapDn" . PHP_EOL);
+    };
+    $users = Users("name=$nkz");
+    $users->each($handleUser);
+  }
   $hasEntry = hasLockingReason($db, $nkz);
   if (!$hasEntry) {
     $stmt = $db->prepare("INSERT INTO account_locking_reasons (nkz, reason, operation, inserted_by) values (?, ?, ?, ?)");
@@ -419,9 +434,14 @@ function refreshLatestEntryFromGroupWise($id, $nkz, $u, $db, $entryCount, $userC
     $forceInactiveTime = $no_date;
     if ($forceInactiveTimeValue > 0) {
       $forceInactiveTime = date("Y-m-d", $forceInactiveTimeValue);
+    }
+    if (false) {
+        $directoryId = $u('directoryId', null) | "NONE";
+        $ldapDn = $u('ldapDn', null) | "UNKNOWN";
+    } else {
+        $directoryId = $u->directoryId;
+        $ldapDn = $u->ldapDn;
     } 
-    $directoryId = $u('directoryId', null) | "NONE";
-    $ldapDn = $u('ldapDn', null) | "UNKNOWN";
     if ($forceInactive == $maxForceInactive) {
         $noise = "[NOISE]";
     };
@@ -569,9 +589,10 @@ Usage $bin OP REASON ACCOUNT...
 
 these OPs will lock the account due to an expirationDate in the past
   expired            - 'yesterday'
-  expired_yeserday   - 'yesterday'
+  expired_yesterday  - 'yesterday'
   expires_this_month - 'Anfang des kommenden Monats'
   expires_next_month - 'Ende des kommenden Monats'
+  expires_next_week  - 'Freitag nächste Woche'
   exmat_last_spring  - exmat. on 31.03. previous year -> expires end of september previous year
   watch              - gleicht den Account beim nächsten 'refresh' mit GroupWise ab
 
@@ -640,6 +661,17 @@ USAGE
     $f = function($u) use ($db, $reason) {
       $startOfNextMonth = new DateTime('first day of next month');
       accountExpiresAt($u, $db, $reason, $startOfNextMonth, 'expiresThisMonth', 'gwadmin');
+    };
+
+  } elseif ($op == 'expires_in_10_days') {
+
+    $f = function($u) use ($db, $reason) {
+      $expirationDate = new DateTime('today');
+      $expirationDate->add(DateInterval::createfromdatestring('+10 day'));
+      $expString = $expirationDate->format("d.m.Y");
+      // print("$expString" . PHP_EOL);
+      accountExpiresAt($u, $db, $reason, $expirationDate, "expiresAt_$expString", 'gwadmin');
+      // accountExpiresEndOfNextMonth($u, $db, $reason);
     };
 
   } elseif ($op == 'expires_next_month') {
