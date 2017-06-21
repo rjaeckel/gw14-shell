@@ -1,7 +1,8 @@
 <?php
 namespace mlu\rest;
 
-use \Exception;
+use \Exception,
+    mlu\common;
 
 class apiResult implements \IteratorAggregate {
     /**
@@ -53,6 +54,11 @@ class apiResult implements \IteratorAggregate {
         $this->headers=$headers;
         // decode data if encoding is set
         $this->content=$contentEncoding?\call_user_func($contentEncoding.'_decode',$content):$content;
+        if(__devmode && __devRequests) {
+            $c = $this->content;
+            var_dump($c);
+            //common::logWrite("content = $c" . PHP_EOL);
+        }
     }
     /**
      * encode the data

@@ -61,13 +61,18 @@ class api {
      * into a new instance of $this->resultClass
      */
     protected function request ($method,$url,$data=null) {
+        if(__devmode && __devRequests) {
+       	    common::logWrite("Request <$method> on $url" .PHP_EOL);
+        }
     	$realUrl=\strpos($url, $this->base)===0?$url:$this->base.$url;
         $call = $this->curl($method, $realUrl,$data);
 
-        if(__devmode && __devRequests) {
-        	common::logWrite("Request <$method> on $url" .PHP_EOL);
-        }
         $resultClass="$this->namespace\\apiResult";
+        $resultCallback = $this->resultCallback;
+        if(__devmode && __devRequests) {
+            common::logWrite("resultClass    = $resultClass" . PHP_EOL);
+            common::logWrite("resultCallback = $resultCallback" . PHP_EOL);
+        }
         return new $resultClass (
                 \trim(`$call`),
                 $this->resultCallback,
@@ -141,7 +146,11 @@ class api {
     protected function curl ($method, $uri,$data=null) {
     	if($data) { $data = \escapeshellarg ($data); }
         $uri=  \escapeshellarg($uri);
-        return "curl $this->curlArgs -isSX $method ".($data?"-d $data":"")." $uri";
+        $result = "curl $this->curlArgs -isSX $method ".($data?"-d $data":"")." $uri";
+        if(__devmode && __devRequests) {
+            common::logWrite("curl($method, $uri, $data)" .PHP_EOL);
+        }
+        return $result;
     }
 }
 
