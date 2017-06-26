@@ -65,7 +65,10 @@ function accountExpiredYesterday($u, $db, $reason)
 
   $expired = $u('expirationDate', null);
 
-  $query = $db->prepare("SELECT count(*) cnt FROM account_locking_reasons WHERE nkz = ?");
+  $tablename = "gw_users_tbl"; // "account_locking_reasons
+
+  $select_sql = "SELECT count(*) cnt FROM $tablename WHERE nkz = ?";
+  $query = $db->prepare($select_sql);
   $query->execute(array( $nkz ));
   $count = 0;
   while ($row = $query->fetch(PDO::FETCH_OBJ)) {
@@ -80,7 +83,7 @@ function accountExpiredYesterday($u, $db, $reason)
     $u->url('PUT', $update)->header('http/1.1');
 
     //print_r( $u) ;
-    $insert_sql = "INSERT INTO account_locking_reasons (nkz, reason, operation, inserted_by, force_inactive) values (?, ?, ?, ?, ?)";
+    $insert_sql = "INSERT INTO $tablename (nkz, reason, operation, inserted_by, force_inactive) values (?, ?, ?, ?, ?)";
     $insert_stmt = $db->prepare($insert_sql);
     $insert_stmt->execute(array( $nkz, $reason, 'locked', 'gwadmin', 1 ));
     //mlu\groupwise\wadl\obj::setVars(array('id'=>$id))->object()->url('PUT',$update);
@@ -121,6 +124,7 @@ function accountExpiresEndOfNextMonth($u, $db, $reason)
 
 function accountExpiresAt($u, $db, $reason, $newExpirationDate, $logOperation, $logUser)
 {
+  $tablename = "gw_users_tbl"; // "account_locking_reason"
 
   expiration::showAccount($u);
 
@@ -147,7 +151,8 @@ function accountExpiresAt($u, $db, $reason, $newExpirationDate, $logOperation, $
     $u->url('PUT', $update)->header('http/1.1');
 
     //print_r( $u) ;
-    $stmt = $db->prepare("INSERT INTO account_locking_reasons (nkz, reason, operation, inserted_by) values (?, ?, ?, ?)");
+    $insert_sql = "INSERT INTO $tablename (nkz, reason, operation, inserted_by) values (?, ?, ?, ?)";
+    $stmt = $db->prepare($insert_sql);
     $stmt->execute(array( $u->name, $reason, $logOperation, $logUser ));
     //mlu\groupwise\wadl\obj::setVars(array('id'=>$id))->object()->url('PUT',$update);
   }
@@ -164,11 +169,16 @@ function importAccountFromGroupwise($nkz, $db, $reason, $u, $verbose=true)
   if (!$hasEntry) {
     $mailboxLicenseType = $u('mailboxLicenseType', 'NONE');
     $postoffice = $u->postOfficeName;
-    $sql = "INSERT INTO account_locking_reasons    (nkz, reason, operation, inserted_by, mailbox_license_type, postoffice)        values (?, ?, ?, ?, ?, ?)";
+    $tablename = "gw_users_tbl"; // "account_locking_reasons"
+    $sql = <<<EOD
+    INSERT INTO $tablename
+    (nkz, reason, operation, inserted_by, mailbox_license_type, postoffice)
+    VALUES (?, ?, ?, ?, ?, ?)
+EOD;
     $stmt = $db->prepare($sql);
     $stmt->execute(array($nkz, $reason, 'watch', 'gwadmin', $mailboxLicenseType, $postoffice));
     if ($verbose) {
-        printf("$nkz in Tabelle account_locking_reasons aufgenommen" . PHP_EOL);
+        printf("$nkz in Tabelle $tablename aufgenommen" . PHP_EOL);
     }
     return true;
   } else {
@@ -195,11 +205,12 @@ function watchAccount($nkz, $db, $reason, $verbose=true)
     $users->each($handleUser);
   }
   $hasEntry = hasLockingReason($db, $nkz);
+  $tablename = "gw_users_tbl"; // "account_locking_reasons"
   if (!$hasEntry) {
-    $stmt = $db->prepare("INSERT INTO account_locking_reasons (nkz, reason, operation, inserted_by) values (?, ?, ?, ?)");
+    $stmt = $db->prepare("INSERT INTO $tablename (nkz, reason, operation, inserted_by) values (?, ?, ?, ?)");
     $stmt->execute(array( $nkz, $reason, 'watch', 'gwadmin' ));
     if (true or $verbose) {
-        printf("$nkz in Tabelle account_locking_reasons aufgenommen" . PHP_EOL);
+        printf("$nkz in Tabelle $tablename aufgenommen" . PHP_EOL);
     }
     return true;
   } else {
@@ -216,6 +227,7 @@ function unexpireAccount($u, $db, $reason)
 
   $nkz = $u->name;
   expiration::showAccount($u);
+  $tablename = "gw_users_tbl"; // "account_locking_reasons"
 
   /** @var mlu\groupwise\xsd\restDeliverable $update */
   $update = new stdClass(); // (object)null
@@ -231,11 +243,11 @@ function unexpireAccount($u, $db, $reason)
     $u->url('PUT', $update)->header('http/1.1');
 
     //print_r( $u) ;
-    $stmt = $db->prepare("INSERT INTO account_locking_reasons (nkz, reason, operation, inserted_by) values (?, ?, ?, ?)");
+    $stmt = $db->prepare("INSERT INTO $tablename (nkz, reason, operation, inserted_by) values (?, ?, ?, ?)");
     $stmt->execute(array( $u->name, $reason, 'unlocked', 'gwadmin' ));
     //mlu\groupwise\wadl\obj::setVars(array('id'=>$id))->object()->url('PUT',$update);
   } elseif (!$hasEntry) {
-    $stmt = $db->prepare("INSERT INTO account_locking_reasons (nkz, reason, operation, inserted_by) values (?, ?, ?, ?)");
+    $stmt = $db->prepare("INSERT INTO $tablename (nkz, reason, operation, inserted_by) values (?, ?, ?, ?)");
     $stmt->execute(array( $u->name, $reason, 'unlocked', 'gwadmin' ));
   } else {
     printf("Account was not expired at all" . PHP_EOL);
@@ -243,34 +255,23 @@ function unexpireAccount($u, $db, $reason)
 }
 
 /**
+ *
+ */
+function importRecentlyCreatedOrModifiedUsersFromGroupwise($db)
+{
+}
+
+/**
  * Anlässlich Redmine #710
  */
-function importLockedUsersFromGroupwise($db, $flavour = 0)
+function importUsersFromGroupwise($db, $condition)
 {
     $items_per_page = 500;
     $verbose = false;
-    $reason = "Import according to Redmine #710 - Flavour $flavour";
+    $reason = "importiert wegen '$condition'";
+    $condition_with_limit = "$condition&count=$items_per_page";
     // values from GroupWise
-    if ($flavour == 1) {
-       $users = Users("loginDisabled=true"); // &count=$items_per_page
-    } elseif ($flavour == 2) {
-       $users = Users("filter=expirationDate+gt+1439546400000"); // &count=$items_per_page
-    } elseif ($flavour == 3) {
-       $reason = "Import according to Redmine #807 - Flavour $flavour";
-       $users = Users("mailboxLicenseType=UNKNOWN"); // &count=$items_per_page
-    } elseif ($flavour == 4) {
-       $reason = "Import according to Redmine #807 - Flavour $flavour";
-       $users = Users("mailboxLicenseType=FULL"); // &count=$items_per_page
-    } elseif ($flavour == 5) {
-       $reason = "Import according to Redmine #807 - Flavour $flavour";
-       $users = Users("mailboxLicenseType=LIMITED"); // &count=$items_per_page
-    } elseif (false) {
-       // $reason = "Import according to Redmine #807 - Flavour $flavour";
-       // $users = Users("mailboxLicenseType=LIMITED"); // &count=$items_per_page
-       // https://gwdom0.itz.uni-halle.de:9710/gwadmin-service/list/USER?directoryId=xd&attrs=mailboxLizenseType,preferredEmailAddress,directoryId
-    } else {
-       $users = Users("forceInactive=true&count=$items_per_page");
-    }
+    $users = Users($condition_with_limit); 
     $userCount = 0;
     $handleUser = function($u) use ($db, $verbose, $reason) {
         /*
@@ -352,12 +353,14 @@ function importLockedUsersFromGroupwise($db, $flavour = 0)
             break;
         } else {
             $userCount += $items_per_page;
-            printf("Locked in GW: $userCount" . PHP_EOL);
+            $info_line = "From GW: $userCount ($condition)" . PHP_EOL;
+            printf($info_line);
             $users->each($handleUser);
             $users = $users->nextListPage();
         }
     }
-    printf("Locked in GW: $userCount" . PHP_EOL);
+    $info_line = "From GW: $userCount ($condition)" . PHP_EOL;
+    printf($info_line);
 }
 
 
@@ -512,8 +515,9 @@ function refreshLatestEntryFromGroupWise($id, $nkz, $u, $db, $entryCount, $userC
   //$db_stats = "$mailboxSize (id=$id, count=$entryCount)";
   $db_stats = "";
   printf("[$nkz.$postoffice.$gw_domain]: $mailboxStatus] $noise $fullname ($reason) $db_stats" . PHP_EOL);
+  $tablename = "gw_users_tbl"; // "account_locking_reasons"
   $sql = <<<EOD
-  UPDATE `account_locking_reasons`
+  UPDATE $tablename
      SET `force_inactive` = ?, 
          `expiration_date` = ?,
           gw_domain = ?, postoffice = ?, gwid = ?,
@@ -640,7 +644,8 @@ function importInternetDomainPostOfficeAssignment($db)
 function hasLockingReason($db, $nkz)
 {
   $count = 0;
-  $stmt = $db->prepare("SELECT count(*) cnt FROM `account_locking_reasons` WHERE `nkz`=?");
+  $tablename = "gw_users_tbl"; // "account_locking_reasons"
+  $stmt = $db->prepare("SELECT count(*) cnt FROM `$tablename` WHERE `nkz`=?");
   $stmt->execute(array( $nkz ));
   while ($row = $stmt->fetch(PDO::FETCH_OBJ)) {
     $count = $row->cnt;
@@ -653,25 +658,39 @@ function refreshLockingStatusFromGroupWise($db)
 {
   $now = date("Y-m-d H:i:s");
 
-  if (false) {
-  importLockedUsersFromGroupwise($db, 5);
-  // Redmine #710: übernehme etwaige direkt im GW gesperrte Nutzer
-  importLockedUsersFromGroupwise($db, 0);
-  importLockedUsersFromGroupwise($db, 1);
-  importLockedUsersFromGroupwise($db, 2);
+  $today = new DateTime();
+  $today->setTime(0,0);
 
-  // Redmine #807: Mailbox-Lizenz
-  importLockedUsersFromGroupwise($db, 3);
-  importLockedUsersFromGroupwise($db, 4);
+  $tablename = "gw_users_tbl"; // "account_locking_reasons
+
+  if (false) {
+    // Redmine #710: übernehme etwaige direkt im GW gesperrte Nutzer
+    importUsersFromGroupwise($db, "forceInactive=true");
+    importUsersFromGroupwise($db, "loginDisabled=true");
+    $midnight_20150814 = 1439546400000; // 14.08.2015 00:00 Uhr UTC
+    importUsersFromGroupwise($db, "filter=expirationDate+gt+$midnight_20150814");
+
+  } elseif (false) {
+    // Redmine #807: Mailbox-Lizenz
+    importUsersFromGroupwise($db, "mailboxLicenseType=UNKNOWN");
+    importUsersFromGroupwise($db, "mailboxLicenseType=FULL");
+    importUsersFromGroupwise($db, "mailboxLicenseType=LIMITED");
+
+  } elseif (true) {
+    $today_midnight = $today->getTimestamp() * 1000; // 1498435200000;
+    importUsersFromGroupwise($db, "filter=timeCreated+ge+$today_midnight");
+    importUsersFromGroupwise($db, "filter=timeLastMod+ge+$today_midnight");
   }
 
   printf("[NOISE] Uebernehme Sperr- und Ablaufstatus (forceInactive, expirationDate) aus GroupWise ... \n");
   $sql =  <<<EOD
 select * from
-(SELECT nkz, id, max(id) max_id, count(*) cnt, max(force_inactive) max_force_inactive, min(expiration_date) min_expiration_date
-FROM account_locking_reasons 
-group by nkz) temp
-join account_locking_reasons r on r.id = temp.max_id
+  (
+    SELECT nkz, id, max(id) max_id, count(*) cnt, max(force_inactive) max_force_inactive, min(expiration_date) min_expiration_date
+    FROM $tablename
+    group by nkz
+  ) temp
+join $tablename r on r.id = temp.max_id
 order by r.id desc
 EOD;
 
