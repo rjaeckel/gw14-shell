@@ -42,8 +42,11 @@ use \mlu\groupwise\apiResult;
 
 use \mlu\groupwise\expiration;
 
+use \mlu\groupwise\listCache as cache;
+
 require('application.php');
 
+$NOISE = "[NOISE] ";
 
 function accountExpiredYesterday($u, $db, $reason)
 {
@@ -77,7 +80,8 @@ function accountExpiredYesterday($u, $db, $reason)
     $u->url('PUT', $update)->header('http/1.1');
 
     //print_r( $u) ;
-    $insert_stmt = $db->prepare("INSERT INTO account_locking_reasons (nkz, reason, operation, inserted_by, force_inactive) values (?, ?, ?, ?, ?)");
+    $insert_sql = "INSERT INTO account_locking_reasons (nkz, reason, operation, inserted_by, force_inactive) values (?, ?, ?, ?, ?)";
+    $insert_stmt = $db->prepare($insert_sql);
     $insert_stmt->execute(array( $nkz, $reason, 'locked', 'gwadmin', 1 ));
     //mlu\groupwise\wadl\obj::setVars(array('id'=>$id))->object()->url('PUT',$update);
   }
@@ -181,16 +185,11 @@ function importAccountFromGroupwise($nkz, $db, $reason, $u, $verbose=true)
  */
 function watchAccount($nkz, $db, $reason, $verbose=true)
 {
-  if (false) {
+  if (true) {
     $handleUser = function($u) use ($db, $nkz, $verbose) {
       //var_dump($u);
-      $directoryId = "...";
-      $ldapDn = "..."; 
-      $directoryId = $u('directoryId', null) | "NONE";
-      $ldapDn = $u('ldapDn', null) | "NONE";
-      $directoryId= $u->directoryId; //, null) | "NONE";
-      $ldapDn = $u->ldapDn; //, null) | "NONE";
-      printf("DLM: $nkz: directoryId = $directoryId, ldapDn = $ldapDn" . PHP_EOL);
+      list($directoryId, $ldapDn) = getUserDirectoryLink($u);
+      // printf("DEBUG: $nkz: $directoryId = $directoryId, ldapDn = $ldapDn" . PHP_EOL);
     };
     $users = Users("name=$nkz");
     $users->each($handleUser);
@@ -361,6 +360,40 @@ function importLockedUsersFromGroupwise($db, $flavour = 0)
     printf("Locked in GW: $userCount" . PHP_EOL);
 }
 
+
+function getUserDirectoryLink($u)
+{
+  // var_dump($u)
+  $directoryId = null;
+  $ldapDn = null;
+  if (is_null($u)) {
+    return array($directoryId, $ldapDn);
+  }
+  $usr = $u->content;
+  try {
+    if (isset($usr->directoryId)) {
+      $directoryId = $usr->directoryId;
+    };
+  } catch(Exception $e) {
+    // echo 'Message: ' .$e->getMessage();
+  }
+  if (is_null($directoryId)) {
+    try {
+      //$directoryId = $usr->ldapAuthenticationDirectory;
+    } catch(Exception $e) {
+      // echo 'Message: ' .$e->getMessage();
+    }
+  }
+  try {
+    if (isset($usr->ldapDn)) {
+      $ldapDn = $usr->ldapDn;
+    }
+  } catch(Exception $e) {
+    // echo 'Message: ' .$e->getMessage();
+  }
+  return array($directoryId, $ldapDn);
+}
+
 /**
  * Aktualisiert die GW-Austauschdatenbank bzgl. des Löschstatus.
  * @param $id , Eintragsnummer auf der Sperrliste
@@ -375,18 +408,30 @@ function importLockedUsersFromGroupwise($db, $flavour = 0)
  *           0 sonst
  * @param $minExpirationDate , kleinstes Ablaufdatum über alle 'entryCount' Einträge
  */
-function refreshLatestEntryFromGroupWise($id, $nkz, $u, $db, $entryCount, $userCount, $maxForceInactive, $minExpirationDate, $reason)
+function refreshLatestEntryFromGroupWise($id, $nkz, $u, $db, $entryCount, $userCount,
+                                         $maxForceInactive, $minExpirationDate, 
+                                         $reason, $now)
 {
+  // Hinweis zu DATETIME/TIMESTAMP in MySQL:
+  // Quelle: https://stackoverflow.com/questions/12120433/php-mysql-insert-date-format
+  //
+  // The DATETIME type is used for values that contain both date and time parts.
+  // MySQL retrieves and displays DATETIME values in 'YYYY-MM-DD HH:MM:SS' format.
+  // The supported range is '1000-01-01 00:00:00' to '9999-12-31 23:59:59'.
+  //
+  // The TIMESTAMP data type is used for values that contain both date and time parts.
+  // TIMESTAMP has a range of '1970-01-01 00:00:01' UTC to '2038-01-19 03:14:07' UTC.
+
   $today = date("Y-m-d");
 
   $no_noise = "       "; // will be filled with "[NOISE]" to ease suppressing redundant information in cronjobs
   $no_date =  "____-__-__";
   $noise = $no_noise;
   $UNKNOWN = "UNKNOWN";
+  list($directoryId, $ldapDn) = getUserDirectoryLink($u);
+  // printf("DEBUG: $nkz: $directoryId, $ldapDn, $now" . PHP_EOL);
   if (is_null($u)) {
     $visibility = "NONE";
-    $directoryId = null;
-    $ldapDn = null;
     $loginDisabled = true;
     $fullname = $UNKNOWN; // Nutzer wurde im GroupWise gelöscht, umbenannt oder existierte noch nie
     $expirationDateTime = null;
@@ -399,7 +444,7 @@ function refreshLatestEntryFromGroupWise($id, $nkz, $u, $db, $entryCount, $userC
     $firstname = null;
     $lastname = null;
     if ($forceInactive == $maxForceInactive) {
-        $noise = "[NOISE]";
+        $noise = $NOISE;
     };
     $gwid = null;
     $name = null;
@@ -435,13 +480,6 @@ function refreshLatestEntryFromGroupWise($id, $nkz, $u, $db, $entryCount, $userC
     if ($forceInactiveTimeValue > 0) {
       $forceInactiveTime = date("Y-m-d", $forceInactiveTimeValue);
     }
-    if (false) {
-        $directoryId = $u('directoryId', null) | "NONE";
-        $ldapDn = $u('ldapDn', null) | "UNKNOWN";
-    } else {
-        $directoryId = $u->directoryId;
-        $ldapDn = $u->ldapDn;
-    } 
     if ($forceInactive == $maxForceInactive) {
         $noise = "[NOISE]";
     };
@@ -482,7 +520,8 @@ function refreshLatestEntryFromGroupWise($id, $nkz, $u, $db, $entryCount, $userC
           mailbox_size = ?, mail = ?,
           directoryid = ?, ldapdn = ?,
 	  firstname = ?,  lastname = ?,
-          mailbox_license_type = ?
+          mailbox_license_type = ?,
+          imported_at = ?
    WHERE `nkz`=?
 EOD;
   $stmt = $db->prepare($sql);
@@ -494,9 +533,102 @@ EOD;
 	$directoryId, $ldapDn,
 	$firstname, $lastname,
         $mailboxLicenseType,
-	$nkz
+        $now,
+	$nkz, // letzte Zeile!
 	));
-  #var_dump($success);
+  //var_dump($success);
+}
+
+
+/**
+ * TODO: Tabelle gw_postoffices_tbl befuellen
+ */
+function importPostOffices($db)
+{
+    $internal_post_offices = array(
+        'pom00', 'pom01', 'pom02', 'pom03', 'pom04',
+        'pom05', 'pom06', 'pom07', 'pom08', 'pom09',
+        'pom10',
+        'pos06', 'pos07', 'poms8', 'pos09',
+    );
+    if (false) {
+      // cache::PostOffices("domainName=gwdom&count=100" );
+      cache::PostOffices("count=10000" );
+      $f = function($po) use($db) {
+          $id = $po->id;
+          if(startsWith($id, "POST_OFFICE.gw-extern.")) {
+              printf("BUH: $id" . PHP_EOL);
+          } else {
+              printf("BAH: $id" . PHP_EOL);
+          }
+       };
+       cache:PostOffices()->each($f);
+    }
+    return $internal_post_offices;
+}
+
+function startsWith($haystack, $needle)
+{
+     $length = strlen($needle);
+     return (substr($haystack, 0, $length) === $needle);
+}
+
+
+/**
+ * Befuellt die Tabelle gw_internetdomains_tbl
+ */
+function importInternetDomains($db, $internal_post_offices)
+{
+    $now = date("Y-m-d H:i:s");
+    cache::InternetDomains( 'count=500' );
+    global $NOISE;
+    $prefix = $NOISE;
+    $f = function($iDom) use($db, $now, $prefix) {
+        $mail_domainname = $iDom->name;
+        $description = $iDom('description', '');
+        $parts = preg_split("/[\r\n]+/", $description);
+        $assigned_postoffices = implode(" ", $parts);
+        $po_count = sizeof($parts);
+        upsertInternetDomain($db, $now, $prefix, $mail_domainname, $assigned_postoffices, $po_count);
+    };
+    cache::InternetDomains()->each($f);
+}
+
+/**
+ *
+ * @param $db, Verbiundung zur GW-Austauschdatenbank
+ * @param $now, Zeitstempel den alle neuen/modifizierten Datensätze dieser Generation bekommen
+ * @param $name, Name der Maildomain
+ * @param $description, Beschreibung = zugeordnete Post-Offices
+ */
+function upsertInternetDomain($db, $now, $prefix, $name, $description, $po_count)
+{
+    $tablename = "gw_internetdomains_tbl";
+    $insert_sql = "INSERT INTO $tablename (description, imported_at, po_count, mail_domain) values (?, ?, ?)";
+    $update_sql = "UPDATE $tablename SET description = ?, imported_at = ?, po_count = ? WHERE mail_domain = ?";
+    $values = array(
+        $description,
+        $now,
+        $po_count,
+        $name); 
+
+    $update_stmt = $db->prepare($update_sql);
+    $u_success = $update_stmt->execute($values);
+    $u_rows = $update_stmt->rowCount();
+    if ($u_rows > 0) {
+       printf($prefix . "UPDATE affected $u_rows row: $description $name" . PHP_EOL);
+    } else  {
+        $insert_stmt = $db->prepare($insert_sql);
+        $i_success = $insert_stmt->execute($values);
+        $i_rows = $insert_stmt->rowCount();
+        printf($prefix . "INSERT affected $i_rows row: $description $name" . PHP_EOL);
+    }
+}
+
+function importInternetDomainPostOfficeAssignment($db)
+{
+    $internal_post_offices = importPostOffices($db);
+    importInternetDomains($db, $internal_post_offices);
 }
 
 /**
@@ -519,6 +651,9 @@ function hasLockingReason($db, $nkz)
 
 function refreshLockingStatusFromGroupWise($db)
 {
+  $now = date("Y-m-d H:i:s");
+
+  if (false) {
   importLockedUsersFromGroupwise($db, 5);
   // Redmine #710: übernehme etwaige direkt im GW gesperrte Nutzer
   importLockedUsersFromGroupwise($db, 0);
@@ -528,6 +663,7 @@ function refreshLockingStatusFromGroupWise($db)
   // Redmine #807: Mailbox-Lizenz
   importLockedUsersFromGroupwise($db, 3);
   importLockedUsersFromGroupwise($db, 4);
+  }
 
   printf("[NOISE] Uebernehme Sperr- und Ablaufstatus (forceInactive, expirationDate) aus GroupWise ... \n");
   $sql =  <<<EOD
@@ -556,12 +692,12 @@ EOD;
     //print_r($row);
 
     // event handlers ...	
-    $handleUserFound = function($u) use ($db, $nkz, $id, $entryCount, $userCount, $maxForceInactive, $minExpirationDate, $reason) {
-      refreshLatestEntryFromGroupWise($id, $nkz, $u, $db, $entryCount, $userCount, $maxForceInactive, $minExpirationDate, $reason);
+    $handleUserFound = function($u) use ($db, $nkz, $id, $entryCount, $userCount, $maxForceInactive, $minExpirationDate, $reason, $now) {
+      refreshLatestEntryFromGroupWise($id, $nkz, $u, $db, $entryCount, $userCount, $maxForceInactive, $minExpirationDate, $reason, $now);
     };
 
-    $handleUserMissing = function($u) use ($db, $nkz, $id, $entryCount, $userCount, $maxForceInactive, $minExpirationDate, $reason) {
-      refreshLatestEntryFromGroupWise($id, $nkz, null, $db, $entryCount, $userCount, $maxForceInactive, $minExpirationDate, $reason);
+    $handleUserMissing = function($u) use ($db, $nkz, $id, $entryCount, $userCount, $maxForceInactive, $minExpirationDate, $reason, $now) {
+      refreshLatestEntryFromGroupWise($id, $nkz, null, $db, $entryCount, $userCount, $maxForceInactive, $minExpirationDate, $reason, $now);
     };
 
     // ... and their application
@@ -616,6 +752,9 @@ USAGE
   $op = array_shift($argv);
   if ($op == "refresh") {
     refreshLockingStatusFromGroupWise($db);
+    exit();
+  } elseif ($op == "import_domains") {
+    importInternetDomainPostOfficeAssignment($db);
     exit();
   } elseif ($op == "watch") {
     // dont shift array $argv!
