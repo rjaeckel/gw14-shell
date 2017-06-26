@@ -579,6 +579,245 @@ function startsWith($haystack, $needle)
 
 
 /**
+ * Importiert alle Nutzer aus Groupwise in die Austauschdatenbank.
+ */
+function importUsers($db)
+{
+/*
+object(stdClass)#15 (40) {
+  ["@type"]          => string(4)  "user"
+  ["@url"]           => string(61) "/gwadmin-service/domains/gwdomm/postoffices/pom99/users/abcde"
+  ["guid"]           => string(36) "8EA59F81-17AD-0000-9867-776461669999"
+  ["id"]             => string(23) "USER.gwdomx.pox99.abcde"
+  ["lastModifiedBy"] => string(18) "xxxxx.pox99.gwdomm"
+  ["lastModifiedOp"] => string(6)  "MODIFY"
+  ["name"]           => string(5)  "abcde"
+  ["timeCreated"]    => int(1427677819000)
+  ["timeLastMod"]    => int(1498265934000)
+  ["internetDomainName"] => object(stdClass)#16 (3) {
+    ["inherited"]        => bool(false)
+    ["value"]            => string(16) "bereich.uni-halle.de"
+    ["exclusive"]        => bool(true)
+  }
+  ["description"]  => string(14) "Beschreibung"
+  ["directoryId"]  => string(2)  "xd"
+  ["domainName"]   => string(6)  "gwdomx"
+  ["ldapDn"]       => string(43) "CN=abcde,OU=Nutzer,DC=xd,DC=uni-halle,DC=de"
+  ["ldapId"]       => string(32) "292BB95AA85C044F83F2535CAF2CD999"
+  ["moveStatus"]   => object(stdClass)#17 (16) {
+    ["action"]     => string(22) "UDB_MOVE_USER_FINISHED"
+    ["attempt"]    => int(0)
+    ["beginTime"]  => int(1438945557000)
+    ["count"]      => int(717)
+    ["domainName"] => string(6)  "gwdomx"
+    ["endTime"]    => int(1438945557000)
+    ["errno"]      => int(0)
+    ["grandTotal"] => int(717)
+    ["lastAction"] => string(22) "UDB_MOVE_USER_FINISHED"
+    ["originalDomainName"] => string(6)  "gwdomx"
+    ["originalFileId"]     => string(3)  "ghi"
+    ["originalGuid"]       => string(36) "8EA59F81-17AD-0000-9867-776461669999"
+    ["originalName"]       => string(5)  "abcde"
+    ["originalPostOfficeName"] => string(5) "pox00"
+    ["postOfficeName"]         => string(5) "pox00"
+    ["subTotal"]               => int(104)
+  }
+  ["postOfficeName"]        => string(5)  "pox99"
+  ["preferredEmailAddress"] => string(36) "vorname.nachname@bereich.uni-halle.de"
+  ["preferredEmailId"]      => string(19) "vorname.nachname"
+  ["visibility"]            => string(6)  "DOMAIN"
+  ["fileId"]                => string(3)  "ghi"
+  ["loginDisabled"]         => bool(false)
+  ["company"]               => string(3)  "MLU"
+  ["department"]            => string(25) "Abteilung"
+  ["faxNumber"]             => string(5)  "123458"
+  ["givenName"]             => string(11) "Vorname"
+  ["lastClientLoginTime"]   => int(1498247654000)
+  ["lastClientType"]        => string(7)  "MAC_80X"
+  ["mailboxLicenseType"]    => string(7)  "LIMITED"
+  ["mailboxSizeMb"]         => int(1660)
+  ["middleInitial"]         => string(3)  "ABC"
+  ["networkId"]             => string(28) "abcde.Nutzer.xd.uni-halle.de"
+  ["otherPhoneNumber"]      => string(14) "+4934555-00000"
+  ["postOfficeBox"]         => string(36) "vorname.nachname@bereich.uni-halle.de"
+  ["postalZipCode"]         => string(5)  "06120"
+  ["prefix"]                => string(9)  "Dr."
+  ["streetAddress"]         => string(15) "Str."
+  ["surname"]               => string(7)  "Nachname"
+  ["telephoneNumber"]       => string(14) "+4934555-00000"
+  ["title"]                 => string(10) "Abteilungsleiter"
+}
+*/
+  $handleItem = function($u) use ($db) {
+    handleUser($db, $u->content, $u);
+  };
+  $guid = "8EA59F81-17AD-0000-9867-776461663435";
+  $filter = "guid=$guid";
+  $items = Users($filter);
+  $items->each($handleItem);
+}
+
+function handleUser($db, $content, $u)
+{
+  $guid = $content->guid;
+  $name = $content->name;
+  $mail = $content->preferredEmailAddress;
+  if (false) {
+    var_dump($content);
+  }
+  printf("$guid $name $mail" . PHP_EOL);
+  //getUserClientOptions($db, $content, $u);
+  getUserGroupMemberships($db, $content, $u);
+}
+
+function handleUserMembership($db, $user, $membership)
+{
+  var_dump($membership);
+}
+
+function getUserGroupMemberships($db, $user, $u)
+{
+  $obj = $u->requestApiInstance($u->url() . '/groupmemberships?count=10000', @GET)->content;
+  if (false) {
+    var_dump($obj);
+  }
+  foreach ($obj->object as $membership) {
+    handleUserMembership($db, $user, $membership);
+  }
+}
+
+function getUserClientOptions($db, $content, $u)
+{
+/*
+boxSizeLimit
+    $memberships = $u->url().'/clientoptions';
+    //echo $memberships."\n";
+    $u->requestApiInstance($memberships, @GET);
+    var_dump($u);
+    /** @var $u apiResult|restAddressable 
+    //$m = $u->url(@GET);
+    //echo "{$u->id} - {$u->emailAddresses[0]}\n";
+*/
+}
+
+/**
+ * Importiert alle Gruppen aus Groupwise in die Austauschdatenbank.
+ */
+function importGroups($db)
+{
+  $handleItem = function($i) use ($db) {
+    handleGroup($db, $i->content);
+    $memberships = $r->url().'/groupmemberships';
+            //echo $memberships."\n";
+            if(0===stripos($u->id,@USER)) $u->requestApiInstance($memberships, @POST, $ma_group);
+            /** @var $u apiResult|restAddressable */
+            $u=$u->url(@GET);
+            echo "{$u->id} - {$u->emailAddresses[0]}\n";
+    handleGroup($db, $i->content);
+  };
+  $guid = "F4137E0F-0D21-0000-9867-776463313536";
+  $filter = "guid=$guid";
+  //$filter = "name=alias_clemens-krebs_at_philfak2-uni-halle-de";
+  $items = Groups($filter);
+  $items->each($handleItem);
+}
+
+function handleGroup($db, $content)
+{
+/*
+  ["guid"]           => string(36) "F4137E0F-0D21-0000-9867-776463319999"
+  ["id"]             => string(63) "GROUP.gwdomx.pox99.alias_vorname-nachname_at_bereich-uni-halle-de"
+  ["lastModifiedBy"] => string(18) "xxxxx.pox99.gwdomx"
+  ["lastModifiedOp"] => string(6)  "MODIFY"
+  ["name"]           => string(44) "alias_vorname-nachname_at_bereich-uni-halle-de"
+  ["timeCreated"]    => int(1424102748000)
+  ["timeLastMod"]    => int(1472634724000)
+  ["allowedAddressFormats"] => object(stdClass)#16 (2) {
+    ["inherited"]           => bool(false)
+    ["value"]               => array(1) {
+      [0]                   => string(4) "FULL"
+    }
+  }
+  ["internetDomainName"] => object(stdClass)#17 (3) {
+    ["inherited"]        => bool(false)
+    ["value"]            => string(21) "bereich.uni-halle.de"
+    ["exclusive"]        => bool(true)
+  }
+  ["domainName"]            => string(6)  "gwdomx"
+  ["postOfficeName"]        => string(5)  "pox99"
+  ["preferredEmailAddress"] => string(35) "vorname.nachname@bereich.uni-halle.de"
+  ["preferredEmailId"]      => string(13) "vorname.nachname"
+  ["visibility"]            => string(6)  "SYSTEM"
+  ["groupType"]             => string(17) "DISTRIBUTION_LIST"
+  ["replicationOverride"]   => string(23) "ACCORDING_TO_VISIBILITY"
+*/
+  $guid = $content->guid;
+  $name = $content->name;
+  $mail = $content->preferredEmailAddress;
+  if (false) {
+    var_dump($content);
+  }
+  printf("$guid $name $mail" . PHP_EOL);
+}
+
+
+
+/**
+ * Importiert alle Nicknames aus Groupwise in die Austauschdatenbank.
+ */
+function importNicknames($db)
+{
+  $handleItem = function($i) use ($db) {
+    handleNickname($db, $i->content);
+  };
+  $guid = "2B08A701-1952-0000-9867-776463313536";
+  $filter = "guid=$guid";
+  $items = Nicknames($filter);
+  $items->each($handleItem);
+}
+
+function handleNickname($db, $content)
+{
+/*
+object(stdClass)#14 (21) {
+  ["@type"]              => string(8)   "nickname"
+  ["@url"]               => string(104) "/gwadmin-service/domains/gwdomm/postoffices/pom01/nicknames/nickname_vorname-nachname_at_bereich-uni-halle-de"
+  ["guid"]               => string(36)  "2B08A701-1952-0000-9867-776463319999"
+  ["id"]                 => string(66)  "NICKNAME.gwdomm.pom01.nickname_vorname-nachname_at_bereich-uni-halle-de"
+  ["lastModifiedBy"]     => string(18)  "xxxxx.pox99.gwdomx"
+  ["lastModifiedOp"]     => string(6)   "MODIFY"
+  ["name"]               => string(44)  "nickname_vorname-nachname_at_bereich-uni-halle-de"
+  ["timeCreated"]        => int(1484662570000)
+  ["timeLastMod"]        => int(1484663047000)
+  ["internetDomainName"] => object(stdClass)#15 (3) {
+    ["inherited"]        => bool(false)
+    ["value"]            => string(18)  "bereich.uni-halle.de"
+    ["exclusive"]        => bool(true)
+  }
+  ["domainName"]            => string(6)  "gwdomx"
+  ["postOfficeName"]        => string(5)  "pox99"
+  ["preferredEmailAddress"] => string(32) "vorname.nachname@bereich.uni-halle.de"
+  ["preferredEmailId"]      => string(13) "vorname.nachname"
+  ["visibility"]            => string(4)  "NONE"
+  ["expirationDate"]        => int(1517353200000)
+  ["externalSyncOverride"]  => string(20) "IF_VISIBILITY_SYSTEM"
+  ["realMemberType"]        => string(4)  "USER"
+  ["userDomainName"]        => string(6)  "gwdomx"
+  ["userName"]              => string(5)  "abcde"
+  ["userPostOfficeName"]    => string(5)  "pox99"
+}
+
+*/
+  $guid = $content->guid;
+  $name = $content->name;
+  $mail = $content->preferredEmailAddress;
+  if (false) {
+    var_dump($content);
+  }
+  printf("$guid $name $mail" . PHP_EOL);
+}
+
+/**
  * Befuellt die Tabelle gw_internetdomains_tbl
  */
 function importInternetDomains($db, $internal_post_offices)
@@ -771,6 +1010,15 @@ USAGE
   $op = array_shift($argv);
   if ($op == "refresh") {
     refreshLockingStatusFromGroupWise($db);
+    exit();
+  } elseif ($op == "import_groups") {
+    importGroups($db);
+    exit();
+  } elseif ($op == "import_nicknames") {
+    importNicknames($db);
+    exit();
+  } elseif ($op == "import_users") {
+    importUsers($db);
     exit();
   } elseif ($op == "import_domains") {
     importInternetDomainPostOfficeAssignment($db);
