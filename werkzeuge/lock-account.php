@@ -65,28 +65,31 @@ function accountExpiredYesterday($u, $db, $reason)
 
   $expired = $u('expirationDate', null);
 
-  $tablename = "gw_users_tbl"; // "account_locking_reasons
+  $tablenames = array("gw_users_tbl", "account_locking_reasons");
 
-  $select_sql = "SELECT count(*) cnt FROM $tablename WHERE nkz = ?";
-  $query = $db->prepare($select_sql);
-  $query->execute(array( $nkz ));
-  $count = 0;
-  while ($row = $query->fetch(PDO::FETCH_OBJ)) {
-    /*its getting data in line.And its an object*/
-    $count = $row->cnt;
-    break;
-  }
-  if ($expired && $count > 0) {
-    printf("Account is already expired." . PHP_EOL);
-  } else {
-    // speichern
-    $u->url('PUT', $update)->header('http/1.1');
+  foreach ($tablenames as $tablename) {
+    $select_sql = "SELECT count(*) cnt FROM $tablename WHERE nkz = ?";
+    $query = $db->prepare($select_sql);
+    $query->execute(array( $nkz ));
+    $count = 0;
+    while ($row = $query->fetch(PDO::FETCH_OBJ)) {
+      /*its getting data in line.And its an object*/
+      $count = $row->cnt;
+      break;
+    }
+    if ($expired && $count > 0) {
+      printf("Account is already marked as expired in table $tablename." . PHP_EOL);
+    } else {
+      // im Groupwise speichern
+      $u->url('PUT', $update)->header('http/1.1');
+      //print_r( $u) ;
 
-    //print_r( $u) ;
-    $insert_sql = "INSERT INTO $tablename (nkz, reason, operation, inserted_by, force_inactive) values (?, ?, ?, ?, ?)";
-    $insert_stmt = $db->prepare($insert_sql);
-    $insert_stmt->execute(array( $nkz, $reason, 'locked', 'gwadmin', 1 ));
-    //mlu\groupwise\wadl\obj::setVars(array('id'=>$id))->object()->url('PUT',$update);
+      // in der GW-Austauschtabelle speichern
+      $insert_sql = "INSERT INTO $tablename (nkz, reason, operation, inserted_by, force_inactive) values (?, ?, ?, ?, ?)";
+      $insert_stmt = $db->prepare($insert_sql);
+      $insert_stmt->execute(array( $nkz, $reason, 'locked', 'gwadmin', 1 ));
+      //mlu\groupwise\wadl\obj::setVars(array('id'=>$id))->object()->url('PUT',$update);
+    }
   }
 }
 
@@ -326,7 +329,15 @@ function importUsersFromGroupwise($db, $condition)
 	"networkId":"abcde",
 	"surname":"Mustermann"}
         */
-        $nkz = $u->name;
+        if (isset($u->name)) {
+          $nkz = $u->name;
+        } elseif (isset($u->networkId)) {
+          $nkz = $u->networkId;
+        } else {
+          printf("User has no 'name' Attribute:" . PHP_EOL);
+          var_dump($u);
+          return;
+        }
         $name_parts = array();
         if (isset($u->givenName)) {
             $firstname = $u->givenName;
@@ -415,6 +426,8 @@ function refreshLatestEntryFromGroupWise($id, $nkz, $u, $db, $entryCount, $userC
                                          $maxForceInactive, $minExpirationDate, 
                                          $reason, $now)
 {
+  global $NOISE;
+
   // Hinweis zu DATETIME/TIMESTAMP in MySQL:
   // Quelle: https://stackoverflow.com/questions/12120433/php-mysql-insert-date-format
   //
