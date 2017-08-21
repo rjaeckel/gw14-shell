@@ -230,7 +230,7 @@ function unexpireAccount($u, $db, $reason)
 
   $nkz = $u->name;
   expiration::showAccount($u);
-  $tablename = "gw_users_tbl"; // "account_locking_reasons"
+  $tablename = "account_locking_reasons"; // "gw_users_tbl"
 
   /** @var mlu\groupwise\xsd\restDeliverable $update */
   $update = new stdClass(); // (object)null
@@ -239,7 +239,7 @@ function unexpireAccount($u, $db, $reason)
 
   // echo $u->url().PHP_EOL;
 
-  $hasEntry = hasLockingReason($db, $nkz);
+  $hasEntry = hasLockingReason($db, $nkz, $tablename);
   $expired = $u('expirationDate', null);
   if ($expired) {
     // speichern
@@ -249,12 +249,12 @@ function unexpireAccount($u, $db, $reason)
     $stmt = $db->prepare("INSERT INTO $tablename (nkz, reason, operation, inserted_by) values (?, ?, ?, ?)");
     $stmt->execute(array( $u->name, $reason, 'unlocked', 'gwadmin' ));
     //mlu\groupwise\wadl\obj::setVars(array('id'=>$id))->object()->url('PUT',$update);
-  } elseif (!$hasEntry) {
+  } else { // if (!$hasEntry) {
     $stmt = $db->prepare("INSERT INTO $tablename (nkz, reason, operation, inserted_by) values (?, ?, ?, ?)");
     $stmt->execute(array( $u->name, $reason, 'unlocked', 'gwadmin' ));
-  } else {
-    printf("Account was not expired at all" . PHP_EOL);
-  }
+  } // else {
+ //   printf("Account was not expired at all" . PHP_EOL);
+//  }
 }
 
 /**
@@ -893,10 +893,10 @@ function importInternetDomainPostOfficeAssignment($db)
  * @param $nkz , Nutzerkennzeichen
  * @return bool
  */
-function hasLockingReason($db, $nkz)
+function hasLockingReason($db, $nkz, $tablename = "account_locking_reasons")
 {
   $count = 0;
-  $tablename = "gw_users_tbl"; // "account_locking_reasons"
+  $tablename = "account_locking_reasons"; // "gw_users_tbl"
   $stmt = $db->prepare("SELECT count(*) cnt FROM `$tablename` WHERE `nkz`=?");
   $stmt->execute(array( $nkz ));
   while ($row = $stmt->fetch(PDO::FETCH_OBJ)) {
