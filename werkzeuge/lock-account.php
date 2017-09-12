@@ -860,7 +860,7 @@ function importInternetDomains($db, $internal_post_offices)
 function upsertInternetDomain($db, $now, $prefix, $name, $description, $po_count)
 {
     $tablename = "gw_internetdomains_tbl";
-    $insert_sql = "INSERT INTO $tablename (description, imported_at, po_count, mail_domain) values (?, ?, ?)";
+    $insert_sql = "INSERT INTO $tablename (description, imported_at, po_count, mail_domain) values (?, ?, ?, ?)";
     $update_sql = "UPDATE $tablename SET description = ?, imported_at = ?, po_count = ? WHERE mail_domain = ?";
     $values = array(
         $description,
