@@ -968,7 +968,7 @@ EOD;
     };
 
     $handleUserMissing = function($u) use ($db, $nkz, $id, $entryCount, $userCount, $maxForceInactive, $minExpirationDate, $reason, $now) {
-      refreshLatestEntryFromGroupWise($id, $nkz, null, $db, $entryCount, $userCount, $maxForceInactive, $minExpirationDate, $reason, $now);
+      //refreshLatestEntryFromGroupWise($id, $nkz, null, $db, $entryCount, $userCount, $maxForceInactive, $minExpirationDate, $reason, $now);
     };
 
     // ... and their application
@@ -1002,6 +1002,7 @@ these OPs will lock the account due to an expirationDate in the past
   expires_next_week  - 'Freitag nächste Woche'
   exmat_last_spring  - exmat. on 31.03. previous year -> expires end of september previous year
   watch              - gleicht den Account beim nächsten 'refresh' mit GroupWise ab
+  import_domains     - Importiert die Internetdomains und Post-Office-Zuordnung
 
 these OPs will set an expirationDate in the future
   expires_next_month - 'end of next month'
