@@ -48,7 +48,60 @@ require('application.php');
 
 $NOISE = "[NOISE] ";
 
-function accountExpiredYesterday($u, $db, $reason)
+/**
+   create table locking_requests_tbl (
+       request_id  integer      not null AUTO_INCREMENT
+     , request_by  varchar(255) not null
+     , nkz         varchar(255) not null
+     , operation   varchar(255) not null
+     , reason      varchar(255) not null
+     , constraint locking_requests_pk  primary key (request_id)
+     , constraint locking_requests_uq1 unique (nkz, operation)
+   );
+ */
+function processBatchJobs($db)
+{
+    $sql = <<<EOD
+    select
+        req.request_id
+      , req.request_by
+      , req.nkz
+      , req.operation
+      , req.reason
+      , log.id
+    from locking_requests_tbl req
+    left join account_locking_reasons log
+      on (log.request_id = req.request_id or (log.nkz = req.nkz and req.operation = 'expired' and log.operation in ('locked', 'expired')))
+    where log.id is null
+EOD;
+
+    foreach ($db->query($sql) as $row) {
+      $request_id = $row[ 'request_id' ];
+      $request_by = $row[ 'request_by' ];
+      $nkz = $row[ 'nkz' ];
+      $op = $row[ 'operation' ];
+      $reason = $row[ 'reason' ];
+      $users = Users("name=$nkz");
+      $foundCount = $users->resultInfo->outOf;
+
+      $f = null;
+      if ($op == 'expired') {
+        $f = function($u) use ($db, $reason, $request_by, $request_id) {
+          accountExpiredYesterday($u, $db, $reason, $request_by, $request_id);
+        };
+      }
+
+      if (is_null($f)) {
+        // unbekannte Operation
+      } else {
+        if ($foundCount == 1) {
+          $users->each($f);
+        }
+      }
+    };
+}
+
+function accountExpiredYesterday($u, $db, $reason, $request_by = 'gwadmin',  $request_id = null)
 {
   $nkz = $u->name;
   expiration::showAccount($u);
@@ -65,7 +118,10 @@ function accountExpiredYesterday($u, $db, $reason)
 
   $expired = $u('expirationDate', null);
 
-  $tablenames = array("gw_users_tbl", "account_locking_reasons");
+  $tablenames = array(
+  //   "gw_users_tbl", 
+     "account_locking_reasons"
+  );
 
   foreach ($tablenames as $tablename) {
     $select_sql = "SELECT count(*) cnt FROM $tablename WHERE nkz = ?";
@@ -85,9 +141,12 @@ function accountExpiredYesterday($u, $db, $reason)
       //print_r( $u) ;
 
       // in der GW-Austauschtabelle speichern
-      $insert_sql = "INSERT INTO $tablename (nkz, reason, operation, inserted_by, force_inactive) values (?, ?, ?, ?, ?)";
+      $insert_sql = <<<EOD
+          INSERT INTO $tablename (nkz, reason, operation, inserted_by, force_inactive, request_id)
+          values (?, ?, ?, ?, ?, ?)
+EOD;
       $insert_stmt = $db->prepare($insert_sql);
-      $insert_stmt->execute(array( $nkz, $reason, 'locked', 'gwadmin', 1 ));
+      $insert_stmt->execute(array( $nkz, $reason, 'locked', $request_by, 1, $request_id ));
       //mlu\groupwise\wadl\obj::setVars(array('id'=>$id))->object()->url('PUT',$update);
     }
   }
@@ -109,9 +168,7 @@ function accountExpiresEndOfNextMonth($u, $db, $reason)
 
   // echo $u->url().PHP_EOL;
 
-//	$expired = $u('expirationDate',null);
-//	if ($expired) {
-//		printf("Account is already expired" . PHP_EOL);
+//	$expired = $u(expired" . PHP_EOL);
 //	} else {
 //	if (true) {
 //		// speichern
@@ -1037,6 +1094,9 @@ USAGE
   } elseif ($op == "import_domains") {
     importInternetDomainPostOfficeAssignment($db);
     exit();
+  } elseif ($op == 'batchjobs') {
+    processBatchJobs($db);
+    exit();
   } elseif ($op == "watch") {
     // dont shift array $argv!
     $reason = "watch";
@@ -1073,7 +1133,7 @@ USAGE
   if ($op == 'expired' or $op == 'expired_yesterday') {
 
     $f = function($u) use ($db, $reason) {
-      accountExpiredYesterday($u, $db, $reason);
+        accountExpiredYesterday($u, $db, $reason, 'gwadmin');
     };
 
   } elseif ($op == 'expires_this_month') {
