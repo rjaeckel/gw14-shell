@@ -293,12 +293,14 @@ function getMailFromResult($ldapRes)
 {
     $rawMail = strtolower($ldapRes->postOfficeBox);
     $mail = $mail1 = $rawMail;
-    $mail = $mail2 = str_replace("@@", "@student.uni-halle.de", $mail);
-    $mail = $mail3 = preg_replace("/@$/", ".uni-halle.de", $mail);
+    $mail = $mail2 = str_replace("@@@", "@uni-halle.de", $mail);
+    $mail = $mail3 = str_replace("@@", "@student.uni-halle.de", $mail);
+    $mail = $mail4 = preg_replace("/@$/", ".uni-halle.de", $mail);
     if ($rawMail != $mail) {
         common::logWrite(NOISE."mailraw = $mail1" . PHP_EOL);
-        common::logWrite(NOISE."mail_@@ = $mail2" . PHP_EOL);
-        common::logWrite(NOISE."mail__@ = $mail3" . PHP_EOL);
+        common::logWrite(NOISE."mail@@@ = $mail2" . PHP_EOL);
+        common::logWrite(NOISE."mail_@@ = $mail3" . PHP_EOL);
+        common::logWrite(NOISE."mail__@ = $mail4" . PHP_EOL);
     }
     return $mail;
 }
