@@ -407,10 +407,7 @@ if(cfg::$move||cfg::$update) {
                             worker()->enqueue(function()use($user,$ldapMail,$ldapRes){
                                 // generate java-timestamp -> time()*1000 for expiration date
                                 $laufzeit = 3600*24*270; // Laufzeit von 90 Tagen auf 270 Tage erhöht 
-                                $exp=1000*(
-                                        mktime(0,0,0) // midnight +
-                                        $laufzeit    // frueher 90 Tage, nun 270 Tage
-                                    );
+                                $exp=1000*(mktime(0,0,0) + $laufzeit); // midnight + 270 Tage
                                 common::logWrite("Creating Nickname for <{$user->id}>",STDERR,"\n");
                                 common::createNickname(
                                     $user->id,
