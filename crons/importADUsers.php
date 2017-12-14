@@ -406,9 +406,10 @@ if(cfg::$move||cfg::$update) {
                         //email-address changed, create nickname
                             worker()->enqueue(function()use($user,$ldapMail,$ldapRes){
                                 // generate java-timestamp -> time()*1000 for expiration date
+                                $laufzeit = 3600*24*270; // Laufzeit von 90 Tagen auf 270 Tage erhöht 
                                 $exp=1000*(
                                         mktime(0,0,0) // midnight +
-                                        +7776000    // 90 days -> 3600s*24*90
+                                        $laufzeit    // frueher 90 Tage, nun 270 Tage
                                     );
                                 common::logWrite("Creating Nickname for <{$user->id}>",STDERR,"\n");
                                 common::createNickname(
@@ -445,7 +446,8 @@ Sehr geehrte*r $title$givenName $surname,
 
 aufgrund einer Namensänderung wurde die E-Mail-Adresse zu Ihrem Account "$uid" von "$preferredEmailId@$internetDomain" auf "$ldapMail" geändert.
 
-Die alte Adresse wird automatisch 90 Tage lang auf die neue umgeleitet.
+Mails an die alte Adresse werden für die nächsten 270 Tage in Ihr Postfach umgeleitet.
+Nach Ablauf dieser Frist erhält der Absender eine Meldung der Art 'Mailadresse unbekannt'.
 
 Nutzen Sie bitte diese Zeit, um alle Ihre Korrespondenten über die neue Adresse zu informieren und bestehende Verknüpfungen mit der alten Adresse, wie Weiterleitungen und Registrierungen, anzupassen.
 
