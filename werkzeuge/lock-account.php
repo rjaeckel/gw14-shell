@@ -59,7 +59,7 @@ $NOISE = "[NOISE] ";
      , constraint locking_requests_uq1 unique (nkz, operation)
    );
  */
-function processBatchJobs($db)
+function process_batchjobs($db)
 {
     $sql = <<<EOD
     select
@@ -1064,8 +1064,11 @@ these OPs will lock the account due to an expirationDate in the past
 these OPs will set an expirationDate in the future
   expires_next_month - 'end of next month'
 
-   unexpire           - removes expirations
+Other commands:
+
+  unexpire           - removes expirations
   show               - shows the current account status in GroupWise
+  batchjobs          - processes the job queue
 
 USAGE
     );
@@ -1095,7 +1098,7 @@ USAGE
     importInternetDomainPostOfficeAssignment($db);
     exit();
   } elseif ($op == 'batchjobs') {
-    processBatchJobs($db);
+    process_batchjobs($db);
     exit();
   } elseif ($op == "watch") {
     // dont shift array $argv!
