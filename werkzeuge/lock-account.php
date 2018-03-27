@@ -80,7 +80,9 @@ function process_batchjobs($db)
     where log.id is null
 EOD;
 
+    $index = 0;
     foreach ($db->query($sql) as $row) {
+      $index += 1;
       $request_id = $row[ 'request_id' ];
       $request_by = $row[ 'request_by' ];
       $nkz = $row[ 'nkz' ];
@@ -89,6 +91,7 @@ EOD;
       $users = Users("name=$nkz");
       $foundCount = $users->resultInfo->outOf;
 
+      print "$index. [$request_id] $op $nkz $reason ($foundCount users found) ..." . PHP_EOL;
       list($found_operation, $f) = process_batchable_operation($op, $db, $reason, $request_by, $request_id);
 
 //      $f = null;
@@ -135,7 +138,7 @@ function process_batchable_operation($op, $db, $reason, $request_by, $request_id
   } else {
     $f = function($u) {
       print "unbatchable operation";
-      expiration::showAccount($u);
+      showAccount($u);
     };
 
   }
@@ -145,7 +148,7 @@ function process_batchable_operation($op, $db, $reason, $request_by, $request_id
 function accountExpiredYesterday($u, $db, $reason, $request_by = 'gwadmin',  $request_id = null)
 {
   $nkz = $u->name;
-  expiration::showAccount($u);
+  showAccount($u);
 
   $yesterday = new DateTime('yesterday');
 
@@ -196,7 +199,7 @@ EOD;
 function accountExpiresEndOfNextMonth($u, $db, $reason)
 {
 
-//	expiration::showAccount($u) ;
+//	showAccount($u) ;
 
   $endOfNextMonth = new DateTime('last day of next month');
   accountExpiresAt($u, $db, $reason, $endOfNextMonth, 'expiresNextMonth', 'gwadmin');
@@ -227,7 +230,7 @@ function accountExpiresAt($u, $db, $reason, $newExpirationDate, $logOperation, $
 {
   $tablename = "gw_users_tbl"; // "account_locking_reason"
 
-  expiration::showAccount($u);
+  showAccount($u);
 
   $today = new DateTime('today');
 
@@ -323,15 +326,28 @@ function watchAccount($nkz, $db, $reason, $verbose=true)
 }
 
 /**
+ * Shows firstname and lastname
+ */
+function showAccount($u, $context = "")
+{
+  if (strlen($context) > 0) {
+    print "<$context>" . PHP_EOL;
+  }
+  expiration::showAccount($u);
+  if (strlen($context) > 0) {
+    print "</$context>" . PHP_EOL;
+  }
+}
+
+/**
  *
  * @param string       $request_by  Kennung des ausführenden Administrators bzw. 'gwadmin'
  * @param null|integer $request_id  Auftragsnummer aus der GW-Austauschtabelle locking_requests_tbl
  */
 function unexpireAccount($u, $db, $reason, $request_by = 'gwadmin', $request_id = null)
 {
-
   $nkz = $u->name;
-  expiration::showAccount($u);
+  showAccount($u, "unexpireAccount");
   $tablename = "account_locking_reasons"; // "gw_users_tbl"
 
   /** @var mlu\groupwise\xsd\restDeliverable $update */
@@ -348,12 +364,12 @@ function unexpireAccount($u, $db, $reason, $request_by = 'gwadmin', $request_id 
     $u->url('PUT', $update)->header('http/1.1');
 
     //print_r( $u) ;
-    $stmt = $db->prepare("INSERT INTO $tablename (nkz, reason, operation, inserted_by) values (?, ?, ?, ?)");
-    $stmt->execute(array( $u->name, $reason, 'unlocked', 'gwadmin' ));
+    $stmt = $db->prepare("INSERT INTO $tablename (nkz, reason, operation, inserted_by, request_id) values (?, ?, ?, ?, ?)");
+    $stmt->execute(array( $u->name, $reason, 'unlocked', $request_by, $request_id ));
     //mlu\groupwise\wadl\obj::setVars(array('id'=>$id))->object()->url('PUT',$update);
   } else { // if (!$hasEntry) {
-    $stmt = $db->prepare("INSERT INTO $tablename (nkz, reason, operation, inserted_by) values (?, ?, ?, ?)");
-    $stmt->execute(array( $u->name, $reason, 'unlocked', 'gwadmin' ));
+    $stmt = $db->prepare("INSERT INTO $tablename (nkz, reason, operation, inserted_by, request_id) values (?, ?, ?, ?, ?)");
+    $stmt->execute(array( $u->name, $reason, 'unlocked', $request_by, $request_id ));
   } // else {
  //   printf("Account was not expired at all" . PHP_EOL);
 //  }
@@ -1082,7 +1098,7 @@ EOD;
   }
 
   //
-  //expiration::showAccount($u) ;
+  //showAccount($u) ;
 }
 
 function main($argv)
@@ -1175,7 +1191,7 @@ USAGE
 
   $f_default = function($u) {
     print "unknown operation";
-    expiration::showAccount($u);
+    showAccount($u);
   };
 
   $request_by = 'gwadmin';
@@ -1242,7 +1258,7 @@ USAGE
     exit(0);
   } elseif ($op = 'show') {
     $f = function($u) use ($reason) {
-      expiration::showAccount($u);
+      showAccount($u);
       print "reason = '$reason'" . PHP_EOL;
     };
   } else {
