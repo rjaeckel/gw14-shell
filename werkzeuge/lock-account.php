@@ -365,11 +365,11 @@ function unexpireAccount($u, $db, $reason, $request_by = 'gwadmin', $request_id 
 
     //print_r( $u) ;
     $stmt = $db->prepare("INSERT INTO $tablename (nkz, reason, operation, inserted_by, request_id) values (?, ?, ?, ?, ?)");
-    $stmt->execute(array( $u->name, $reason, 'unlocked', $request_by, $request_id ));
+    $stmt->execute(array( $u->name, $reason, 'unexpire', $request_by, $request_id ));
     //mlu\groupwise\wadl\obj::setVars(array('id'=>$id))->object()->url('PUT',$update);
   } else { // if (!$hasEntry) {
     $stmt = $db->prepare("INSERT INTO $tablename (nkz, reason, operation, inserted_by, request_id) values (?, ?, ?, ?, ?)");
-    $stmt->execute(array( $u->name, $reason, 'unlocked', $request_by, $request_id ));
+    $stmt->execute(array( $u->name, $reason, 'unexpire', $request_by, $request_id ));
   } // else {
  //   printf("Account was not expired at all" . PHP_EOL);
 //  }
