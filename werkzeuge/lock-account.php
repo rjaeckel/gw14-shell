@@ -76,7 +76,7 @@ function process_batchjobs($db)
       , log.id
     from locking_requests_tbl req
     left join account_locking_reasons log
-      on (log.request_id = req.request_id or (log.nkz = req.nkz and req.operation = 'expired' and log.operation in ('locked', 'expired')))
+      on (log.request_id = req.request_id or (log.nkz = req.nkz and req.operation in ('expired', 'sync_dirlink')  and log.operation in ('locked', 'expired', 'sync_diryncink')))
     where log.id is null
 EOD;
 
@@ -135,6 +135,12 @@ function process_batchable_operation($op, $db, $reason, $request_by, $request_id
       unexpireAccount($u, $db, $reason, $request_by, $request_id);
     };
 
+  } elseif ($op == 'sync_dirlink') {
+    $found_operation = true;
+    $f = function($u) use ($db, $reason, $request_by, $request_id) {
+      syncDirectoryLink($u, $db, $reason, $request_by, $request_id);
+    };
+
   } else {
     $f = function($u) {
       print "unbatchable operation";
@@ -143,6 +149,41 @@ function process_batchable_operation($op, $db, $reason, $request_by, $request_id
 
   }
   return array($found_operation, $f);
+}
+
+
+/**
+ * Aktualisiert den hinterlegten LDAP-DN
+ */
+function syncDirectoryLink($u, $db, $reason, $request_by = 'gwadmin', $request_id = null)
+{
+
+  $nkz = $u->name;
+  $obj = $u->requestApiInstance($u->url() . '/directorylink/sync', 'POST')->content;
+  if (false) {
+    var_dump($obj);
+  }
+
+  $tablenames = array(
+     "account_locking_reasons"
+  );
+
+  if (!is_null($request_id)) {
+    foreach ($tablenames as $tablename) {
+      // aus der Queue in der GW-Austauschtabellen
+      $insert_sql = <<<EOD
+      INSERT INTO $tablename (nkz, reason, operation, inserted_by, force_inactive, request_id)
+      values (?, ?, ?, ?, ?, ?)
+EOD;
+      $insert_stmt = $db->prepare($insert_sql);
+      $res = $insert_stmt->execute(array( $nkz, $reason, 'sync_dirlink', $request_by, 0, $request_id ));
+    }
+  }
+
+//      $insert_stmt = $db->prepare($insert_sql);
+//      $insert_stmt->execute(array( $nkz, $reason, 'locked', $request_by, 1, $request_id ));
+      //mlu\groupwise\wadl\obj::setVars(array('id'=>$id))->object()->url('PUT',$update);
+
 }
 
 function accountExpiredYesterday($u, $db, $reason, $request_by = 'gwadmin',  $request_id = null)
@@ -374,6 +415,8 @@ function unexpireAccount($u, $db, $reason, $request_by = 'gwadmin', $request_id 
  //   printf("Account was not expired at all" . PHP_EOL);
 //  }
 }
+
+
 
 /**
  *
@@ -1130,6 +1173,7 @@ Other commands:
   unexpire           - removes expirations
   show               - shows the current account status in GroupWise
   batchjobs          - processes the job queue
+  sync_dirlink       - sync directorylink
 
 USAGE
     );
