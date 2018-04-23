@@ -1248,14 +1248,14 @@ USAGE
 
   } elseif ($op == 'expires_this_month') {
 
-    $f = function($u) use ($db, $reason) {
+    $f = function($u) use ($db, $reason, $request_by) {
       $startOfNextMonth = new DateTime('first day of next month');
       accountExpiresAt($u, $db, $reason, $startOfNextMonth, 'expiresThisMonth', $request_by);
     };
 
   } elseif ($op == 'expires_in_10_days') {
 
-    $f = function($u) use ($db, $reason) {
+    $f = function($u) use ($db, $reason, $request_by) {
       $expirationDate = new DateTime('today');
       $expirationDate->add(DateInterval::createfromdatestring('+10 day'));
       $expString = $expirationDate->format("d.m.Y");
@@ -1266,7 +1266,7 @@ USAGE
 
   } elseif ($op == 'expires_next_month') {
 
-    $f = function($u) use ($db, $reason) {
+    $f = function($u) use ($db, $reason, $request_by) {
       $endOfNextMonth = new DateTime('last day of next month');
       accountExpiresAt($u, $db, $reason, $endOfNextMonth, 'expiresNextMonth', $request_by);
       // accountExpiresEndOfNextMonth($u, $db, $reason);
@@ -1274,7 +1274,7 @@ USAGE
 
   } elseif ($op == 'exmat_last_spring') {
 
-    $f = function($u) use ($db, $reason) {
+    $f = function($u) use ($db, $reason, $request_by) {
       $exmatDate = new DateTime('last day of march last year');
       $expireDate = new DateTime('last day of september last year');
       $logOperation = 'locked Student bis ' . $exmatDate->format('Y-m-d') . ' -> Ablauf ' . $expireDate->format('Y-m-d');
