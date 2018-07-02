@@ -92,7 +92,7 @@ EOD;
       $foundCount = $users->resultInfo->outOf;
 
       print "$index. [$request_id] $op $nkz $reason ($foundCount users found) ..." . PHP_EOL;
-      list($found_operation, $f) = process_batchable_operation($op, $db, $reason, $request_by, $request_id);
+      list($found_operation, $f) = process_batchable_operation($op, $db, $request_by, $request_id, $reason);
 
 //      $f = null;
 //      if ($op == 'expired') {
@@ -119,7 +119,7 @@ EOD;
  *
  * @return array(bool, function($u)) true wenn die Operation verarbeitet wurde, sonst false
  */
-function process_batchable_operation($op, $db, $reason, $request_by, $request_id)
+function process_batchable_operation($op, $db, $request_by, $request_id, $reason)
 {
   $found_operation = false;
 
@@ -141,9 +141,16 @@ function process_batchable_operation($op, $db, $reason, $request_by, $request_id
       syncDirectoryLink($u, $db, $reason, $request_by, $request_id);
     };
 
+  } elseif ($op == 'invisible') {
+    $found_operation = true;
+    $f = function($u) use ($db, $reason, $request_by, $request_id) {
+      invisibilizeAccount($u, $db, $reason, $request_by, $request_id);
+    };
+
   } else {
-    $f = function($u) {
-      print "unbatchable operation";
+    printf("WARNUNG: unbatchable operation '$op'" . PHP_EOL);
+    $f = null;
+    $f2 = function($u) {
       showAccount($u);
     };
 
@@ -186,6 +193,17 @@ EOD;
 
 }
 
+
+function invisibilizeAccount($u, $db, $reason, $request_by = 'gwadmin',  $request_id = null)
+{
+  /** @var mlu\groupwise\xsd\restDeliverable $update */
+  $update = new stdClass(); // (object)null
+  $update->visibility = 'NONE';
+
+  $u->url('PUT', $update)->header('http/1.1');
+}
+
+
 function accountExpiredYesterday($u, $db, $reason, $request_by = 'gwadmin',  $request_id = null)
 {
   $nkz = $u->name;
@@ -197,6 +215,7 @@ function accountExpiredYesterday($u, $db, $reason, $request_by = 'gwadmin',  $re
   $update = new stdClass(); // (object)null
   $update->expirationDate = $yesterday->getTimestamp() * 1000;
   $update->forceInactive = true;
+  $update->loginDisabled = true;
   $update->visibility = 'NONE';
 
   // echo $u->url().PHP_EOL;
@@ -395,6 +414,8 @@ function unexpireAccount($u, $db, $reason, $request_by = 'gwadmin', $request_id 
   $update = new stdClass(); // (object)null
   $update->expirationDate = 0;
   $update->forceInactive = false;
+  $update->loginDisabled = false;
+  $update->visibility = 'POST_OFFICE';
 
   // echo $u->url().PHP_EOL;
 
@@ -686,6 +707,9 @@ function refreshLatestEntryFromGroupWise($id, $nkz, $u, $db, $entryCount, $userC
     $mailboxStatus = "$inactiveDisplay forceInactiveTime=$forceInactiveTime loginDisabled=$loginDisabled exp=$expireDisplay visibility=$prettyVisibility $prettyDirectory";
   }
 
+//  printf("force_inactive = $forceInactive" . PHP_EOL);
+//  printf("login_disabled = $loginDisabled" . PHP_EOL);
+
   //$db_stats = "$mailboxSize (id=$id, count=$entryCount)";
   $db_stats = "";
   printf("[$nkz.$postoffice.$gw_domain]: $mailboxStatus] $noise $fullname ($reason) $db_stats" . PHP_EOL);
@@ -693,6 +717,8 @@ function refreshLatestEntryFromGroupWise($id, $nkz, $u, $db, $entryCount, $userC
   $sql = <<<EOD
   UPDATE $tablename
      SET `force_inactive` = ?, 
+         `login_disabled` = ?,
+         `visibility` = ?,
          `expiration_date` = ?,
           gw_domain = ?, postoffice = ?, gwid = ?,
           mailbox_size = ?, mail = ?,
@@ -705,6 +731,8 @@ EOD;
   $stmt = $db->prepare($sql);
   $success = $stmt->execute(array(
 	$forceInactive,
+        $loginDisabled,
+        $visibility,
 	$expirationDateTime,
 	$gw_domain, $postoffice, $gwid,
 	$mailboxSizeMb, $mail,
@@ -1186,9 +1214,18 @@ USAGE
 // exmat_this_spring  - exmat. on 31.03. current year -> expires end of september this year
 // exmat_this_autumn  - exmat. on 30.09. current year -> expires end of march next year
 
+  $script_name = "./werkzeuge/lock-account.php";
+
+  $request_by = 'gwadmin';
+  $request_id = null;
+
+  $found_operation = false; // siehe 'process_batchable_operation'
+
   $op = array_shift($argv);
   if ($op == "refresh") {
+    echo "$script_name $op starting at " . date("d.m.Y h:i:sa") . PHP_EOL;
     refreshLockingStatusFromGroupWise($db);
+    echo "$script_name $op finished at " . date("d.m.Y h:i:sa") . PHP_EOL;
     exit();
   } elseif ($op == "import_groups") {
     importGroups($db);
@@ -1212,6 +1249,7 @@ USAGE
     $reason = "info";
   } else {
     $reason = array_shift($argv);
+    list($found_operation, $f_found) = process_batchable_operation($op, $db, $request_by, $request_id, $reason);
   }
 
   /*
@@ -1238,10 +1276,6 @@ USAGE
     showAccount($u);
   };
 
-  $request_by = 'gwadmin';
-  $request_id = null;
-
-  list($found_operation, $f_found) = process_batchable_operation($op, $db, $reason, $request_by, $request_id);
 
   if ($found_operation) {
     $f = $f_found;
@@ -1297,7 +1331,7 @@ USAGE
       $count++;
     }
     if ($count == 0) {
-      printf("WARNING: keine Nutzerkennzeichen zur Beobachtung aufgenommen!" . PHP_EOL);
+      printf("WARNUNG: keine Nutzerkennzeichen zur Beobachtung aufgenommen!" . PHP_EOL);
     }
     exit(0);
   } elseif ($op = 'show') {
@@ -1306,36 +1340,46 @@ USAGE
       print "reason = '$reason'" . PHP_EOL;
     };
   } else {
-    $f = $f_default;
+    $f = null; // $f_default;
   }
 
-  foreach ($argv as $i => $nkz) {
+  $loop_count = 0;
+  if (!is_null($f)) {
+    foreach ($argv as $i => $nkz) {
+      $loop_count += 1;
 
-    print $i . ' ' . $nkz . PHP_EOL;
-    /*$data = */
-    // &attrs=givenName,surname
-    $users = Users("name=$nkz");
-    $foundCount = $users->resultInfo->outOf;
+      print $i . ' ' . $nkz . PHP_EOL;
+      /*$data = */
+      // &attrs=givenName,surname
+      $users = Users("name=$nkz");
+      $foundCount = $users->resultInfo->outOf;
 
-    if ($foundCount == 1) {
-
-      $users->each($f);
-
-    } elseif ($foundCount == 0) {
-      fwrite(STDERR, sprintf("Search for user <%s> did not succeed: nothing found", $nkz, $foundCount));
-    } else {
-      fwrite(STDERR, sprintf("Search for user <%s> did not succeed: found %d possible entries", $nkz, $foundCount));
+      if ($foundCount == 1) {
+        $users->each($f);
+      } elseif ($foundCount == 0) {
+        fwrite(STDERR, sprintf("Search for user <%s> did not succeed: nothing found", $nkz, $foundCount));
+      } else {
+        fwrite(STDERR, sprintf("Search for user <%s> did not succeed: found %d possible entries", $nkz, $foundCount));
+      }
+      /*
+      // explizites ansprechen des http-payloads ohne fehlerprüfung und wrapping
+      foreach($data as $user) {
+        print_r( $user) ;
+        $user->surname;
+        }
+      */
     }
-    /*
-    // explizites ansprechen des http-payloads ohne fehlerprüfung und wrapping
-    foreach($data as $user) {
-      print_r( $user) ;
-      $user->surname;
-    }
-    */
 
+    if ($loop_count == 0) {
+      if ($found_operation == true) {
+        printf("WARNUNG: Operation '$op' wurde nicht ausgefuehrt!" . PHP_EOL); 
+      } elseif (is_null($f)) {
+        printf("WARNUNG: Unbekannte Operation '$op' wurde nicht ausgefuehrt!" . PHP_EOL); 
+      } else {
+        printf("WARNUNG: Nicht stapelfaehige Operation '$op' wurde nicht ausgefuehrt!" . PHP_EOL); 
+      }
+    }
   }
-
 }
 
 
