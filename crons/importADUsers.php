@@ -408,11 +408,13 @@ if(cfg::$move||cfg::$update) {
                                 // generate java-timestamp -> time()*1000 for expiration date
                                 $laufzeit = 3600*24*270; // Laufzeit von 90 Tagen auf 270 Tage erhöht 
                                 $exp=1000*(mktime(0,0,0) + $laufzeit); // midnight + 270 Tage
+                                $local_part = $user->preferredEmailId;
+                                $domain_part = $user->internetDomainName;
                                 common::logWrite("Creating Nickname for <{$user->id}>",STDERR,"\n");
                                 common::createNickname(
                                     $user->id,
-                                    $user->preferredEmailId,
-                                    $user->internetDomainName,
+                                    $local_part,
+                                    $domain_part,
                                     array(
                                         @visibility=>@NONE,
                                         @expirationDate=>$exp
