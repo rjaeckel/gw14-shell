@@ -91,9 +91,16 @@ EOD;
       $users = Users("name=$nkz");
       $foundCount = $users->resultInfo->outOf;
 
-      print "$index. [$request_id] $op $nkz $reason ($foundCount users found) ..." . PHP_EOL;
-      list($found_operation, $f) = process_batchable_operation($op, $db, $request_by, $request_id, $reason);
-
+      print "[SIGNAL] $index. [$request_id] $op $nkz $reason ($foundCount users found) ..." . PHP_EOL;
+      if ($foundCount > 0) {
+        list($found_operation, $f) = process_batchable_operation($op, $db, $request_by, $request_id, $reason);
+      } else {
+        accountForRequestNotFound($nkz, $db, $reason, $request_by, $request_id);
+        list($found_operation, $f) = array(false, null);
+        list($found_operation, $f) = array(false, null);
+        list($found_operation, $f) = array(false, null);
+        list($found_operation, $f) = array(false, null);
+      }
 //      $f = null;
 //      if ($op == 'expired') {
 //        $f = function($u) use ($db, $reason, $request_by, $request_id) {
@@ -398,6 +405,18 @@ function showAccount($u, $context = "")
     print "</$context>" . PHP_EOL;
   }
 }
+
+
+/**
+ *
+ */
+function accountForRequestNotFound($nkz, $db, $reason, $request_by = 'gwadmin', $request_id = null)
+{
+  $tablename = "account_locking_reasons"; // "gw_users_tbl"
+  $stmt = $db->prepare("INSERT INTO $tablename (nkz, reason, operation, inserted_by, request_id) values (?, ?, ?, ?, ?)");
+  $stmt->execute(array( $nkz, $reason, 'notfound', $request_by, $request_id ));
+}
+
 
 /**
  *
